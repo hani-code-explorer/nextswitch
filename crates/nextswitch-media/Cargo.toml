@@ -7,3 +7,5 @@ edition.workspace = true
 nextswitch-core = { path = "../nextswitch-core" }
 tokio.workspace = true
 tracing.workspace = true
+rustrtc = "0.3.132"
+audio-codec = "0.4"

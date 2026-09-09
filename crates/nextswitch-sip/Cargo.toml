@@ -8,3 +8,5 @@ nextswitch-core = { path = "../nextswitch-core" }
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+rsipstack = "0.6.9"
+tokio-util = "0.7"
