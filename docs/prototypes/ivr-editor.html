@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IVR 工作流编辑器 — Nextswitch</title>
+  <link rel="stylesheet" href="css/design-system.css">
+  <style>
+    .ivr-page { height: 100vh; display: flex; flex-direction: column; }
+    .ivr-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 48px; padding: 0 16px;
+      background: var(--color-bg); border-bottom: 1px solid var(--color-border-secondary);
+      flex-shrink: 0;
+    }
+    .ivr-topbar-left { display: flex; align-items: center; gap: 12px; }
+    .ivr-topbar-center { display: flex; align-items: center; gap: 8px; }
+    .ivr-topbar-right { display: flex; align-items: center; gap: 8px; }
+    .ivr-flow-name {
+      font-size: 15px; font-weight: 600;
+      padding: 2px 8px; border-radius: 4px;
+      border: 1px solid transparent;
+      cursor: text;
+    }
+    .ivr-flow-name:hover { border-color: var(--color-border); }
+    .ivr-version { font-size: 12px; color: var(--color-text-tertiary); }
+
+    .ivr-main { display: flex; flex: 1; overflow: hidden; }
+
+    /* Node Panel (Left) */
+    .node-panel {
+      width: 220px; background: var(--color-bg);
+      border-right: 1px solid var(--color-border-secondary);
+      overflow-y: auto; flex-shrink: 0;
+      padding: 12px;
+    }
+    .node-panel-section {
+      margin-bottom: 16px;
+    }
+    .node-panel-title {
+      font-size: 11px; font-weight: 600;
+      color: var(--color-text-tertiary);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      padding: 0 8px; margin-bottom: 8px;
+    }
+    .node-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 8px;
+      cursor: grab; transition: all 0.15s;
+      border: 1px solid transparent;
+      margin-bottom: 4px;
+    }
+    .node-item:hover {
+      background: var(--color-bg-layout);
+      border-color: var(--color-border-secondary);
+    }
+    .node-item:active { cursor: grabbing; }
+    .node-item-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .node-item-info { flex: 1; }
+    .node-item-name { font-size: 13px; font-weight: 500; }
+    .node-item-desc { font-size: 11px; color: var(--color-text-tertiary); }
+
+    /* Canvas */
+    .canvas-area {
+      flex: 1; position: relative;
+      background: #fafafa;
+      background-image:
+        radial-gradient(circle, #ddd 1px, transparent 1px);
+      background-size: 20px 20px;
+      overflow: hidden;
+    }
+    .canvas-nodes {
+      position: absolute;
+      top: 40px; left: 60px;
+    }
+
+    /* Flow Nodes */
+    .flow-node {
+      position: absolute;
+      width: 200px;
+      background: var(--color-bg);
+      border: 2px solid var(--color-border-secondary);
+      border-radius: 10px;
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .flow-node:hover {
+      box-shadow: var(--shadow);
+      border-color: var(--color-border);
+    }
+    .flow-node.selected {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(22,119,255,0.15);
+    }
+    .flow-node-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--color-border-secondary);
+      border-radius: 8px 8px 0 0;
+    }
+    .flow-node-icon {
+      width: 24px; height: 24px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; flex-shrink: 0;
+    }
+    .flow-node-title {
+      font-size: 13px; font-weight: 500;
+      flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .flow-node-body {
+      padding: 8px 12px;
+      font-size: 12px; color: var(--color-text-tertiary);
+    }
+    /* Connection ports */
+    .flow-node-port {
+      position: absolute;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      border: 2px solid var(--color-border);
+      background: var(--color-bg);
+    }
+    .flow-node-port-in {
+      top: 50%; left: -6px; transform: translateY(-50%);
+    }
+    .flow-node-port-out {
+      top: 50%; right: -6px; transform: translateY(-50%);
+    }
+    .flow-node-port-out.branch {
+      top: auto; bottom: -6px; left: 50%; transform: translateX(-50%);
+    }
+
+    /* SVG edges */
+    .canvas-edges {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+    }
+    .canvas-edges path {
+      pointer-events: stroke;
+      cursor: pointer;
+    }
+    .edge-label {
+      position: absolute;
+      background: var(--color-bg);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      color: var(--color-text-secondary);
+      border: 1px solid var(--color-border-secondary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Property Panel (Right) */
+    .property-panel {
+      width: 300px; background: var(--color-bg);
+      border-left: 1px solid var(--color-border-secondary);
+      overflow-y: auto; flex-shrink: 0;
+    }
+    .property-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--color-border-secondary);
+    }
+    .property-title { font-size: 15px; font-weight: 600; }
+    .property-body { padding: 16px; }
+    .property-field {
+      margin-bottom: 16px;
+    }
+    .property-label {
+      font-size: 13px; font-weight: 500;
+      color: var(--color-text-secondary);
+      margin-bottom: 6px;
+    }
+    .property-hint {
+      font-size: 12px; color: var(--color-text-quaternary);
+      margin-top: 4px;
+    }
+    .property-select {
+      width: 100%; height: 32px;
+      padding: 4px 11px; border: 1px solid var(--color-border);
+      border-radius: 6px; font-size: 14px;
+      outline: none; background: var(--color-bg);
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%23999' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+    .property-select:focus { border-color: var(--color-primary); }
+    .property-input {
+      width: 100%; height: 32px;
+      padding: 4px 11px; border: 1px solid var(--color-border);
+      border-radius: 6px; font-size: 14px;
+      outline: none;
+    }
+    .property-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(22,119,255,0.1); }
+    .property-switch {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .switch {
+      width: 36px; height: 20px;
+      border-radius: 10px;
+      background: var(--color-text-quaternary);
+      position: relative; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .switch.on { background: var(--color-primary); }
+    .switch::after {
+      content: '';
+      position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px;
+      border-radius: 50%; background: #fff;
+      transition: transform 0.2s;
+    }
+    .switch.on::after { transform: translateX(16px); }
+
+    /* Bottom toolbar */
+    .canvas-toolbar {
+      position: absolute; bottom: 16px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; align-items: center; gap: 4px;
+      background: var(--color-bg);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 4px;
+      z-index: 10;
+    }
+    .toolbar-btn {
+      width: 32px; height: 32px;
+      border: none; background: none;
+      border-radius: 6px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; color: var(--color-text-secondary);
+      transition: all 0.15s;
+    }
+    .toolbar-btn:hover { background: rgba(0,0,0,0.04); color: var(--color-text); }
+    .toolbar-divider { width: 1px; height: 20px; background: var(--color-border-secondary); margin: 0 4px; }
+    .toolbar-zoom { font-size: 12px; color: var(--color-text-tertiary); padding: 0 8px; min-width: 40px; text-align: center; }
+
+    /* Minimap */
+    .minimap {
+      position: absolute; bottom: 16px; right: 16px;
+      width: 160px; height: 100px;
+      background: var(--color-bg);
+      border: 1px solid var(--color-border-secondary);
+      border-radius: 8px;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      z-index: 10;
+    }
+    .minimap-viewport {
+      position: absolute;
+      border: 1.5px solid var(--color-primary);
+      border-radius: 2px;
+      background: rgba(22,119,255,0.05);
+      top: 10%; left: 15%; width: 50%; height: 60%;
+    }
+    .minimap-node {
+      position: absolute;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="ivr-page">
+    <!-- Top Toolbar -->
+    <div class="ivr-topbar">
+      <div class="ivr-topbar-left">
+        <a href="index.html" style="color: var(--color-text-secondary); text-decoration: none; font-size: 16px;">←</a>
+        <span class="ivr-flow-name">销售来电 IVR</span>
+        <span class="ivr-version">v3 · 草稿</span>
+        <span class="tag tag-warning" style="font-size: 11px;">未发布</span>
+      </div>
+      <div class="ivr-topbar-right">
+        <button class="btn btn-sm">↩ 撤销</button>
+        <button class="btn btn-sm">↪ 重做</button>
+        <span style="width: 1px; height: 20px; background: var(--color-border-secondary);"></span>
+        <button class="btn btn-sm">📥 导入</button>
+        <button class="btn btn-sm">📤 导出</button>
+        <span style="width: 1px; height: 20px; background: var(--color-border-secondary);"></span>
+        <button class="btn btn-sm">💾 保存</button>
+        <button class="btn btn-sm btn-primary">🚀 激活</button>
+      </div>
+    </div>
+
+    <div class="ivr-main">
+      <!-- Node Panel -->
+      <div class="node-panel">
+        <div class="node-panel-section">
+          <div class="node-panel-title">基础节点</div>
+          <div class="node-item">
+            <div class="node-item-icon" style="background: #f6ffed; color: var(--color-success);">📞</div>
+            <div class="node-item-info">
+              <div class="node-item-name">接听</div>
+              <div class="node-item-desc">自动应答来电</div>
+            </div>
+          </div>
+          <div class="node-item">
+            <div class="node-item-icon" style="background: #e6f4ff; color: var(--color-primary);">🔊</div>
+            <div class="node-item-info">
+              <div class="node-item-name">播放提示音</div>
+              <div class="node-item-desc">播放音频文件</div>
+            </div>
+          </div>
+          <div class="node-item">
+            <div class="node-item-icon" style="background: #fff7e6; color: #d48806;">🔢</div>
+            <div class="node-item-info">
+              <div class="node-item-name">收号</div>
+              <div class="node-item-desc">收集 DTMF 按键</div>
+            </div>
+          </div>
+          <div class="node-item">
+            <div class="node-item-icon" style="background: #fff7e6; color: #d48806;">🔀</div>
+            <div class="node-item-info">
+              <div class="node-item-name">数字匹配</div>
+              <div class="node-item-desc">按按键路由</div>
+            </div>
+          </div>
+          <div class="node-item">
+            <div class="node-item-icon" style="background: #f9f0ff; color: #722ed1;">📲</div>
+            <div class="node-item-info">
+              <div class="node-item-name">转接</div>
+              <div class="node-item-desc">转接到队列/分机</div>
+            </div>
+          </div>
+          <div class="node-item">
+            <div class="node-item-icon" style="background: #fff2f0; color: var(--color-error);">📴</div>
+            <div class="node-item-info">
+              <div class="node-item-name">挂断</div>
+              <div class="node-item-desc">结束通话</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="node-panel-section">
+          <div class="node-panel-title">高级节点</div>
+          <div class="node-item">
+            <div class="node-item-icon" style="background: #e6fffb; color: #13c2c2;">⏱</div>
+            <div class="node-item-info">
+              <div class="node-item-name">时间条件</div>
+              <div class="node-item-desc">按时间路由</div>
+            </div>
+          </div>
+          <div class="node-item">
+            <div class="node-item-icon" style="background: #f5f5f5; color: var(--color-text-secondary);">🌐</div>
+            <div class="node-item-info">
+              <div class="node-item-name">HTTP 请求</div>
+              <div class="node-item-desc">调用外部 API</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="node-panel-section">
+          <div class="node-panel-title">AI 集成</div>
+          <div class="node-item">
+            <div class="node-item-icon" style="background: linear-gradient(135deg, #e6f4ff, #f9f0ff); color: #2f54eb;">🤖</div>
+            <div class="node-item-info">
+              <div class="node-item-name">AI 节点</div>
+              <div class="node-item-desc">LLM 意图识别</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid var(--color-border-secondary); padding-top: 12px; margin-top: 8px;">
+          <div class="node-panel-title">模板</div>
+          <div class="node-item" style="cursor: pointer;">
+            <div class="node-item-icon" style="background: var(--color-bg-layout); color: var(--color-text-secondary);">📋</div>
+            <div class="node-item-info">
+              <div class="node-item-name">销售 IVR</div>
+              <div class="node-item-desc">标准销售流程</div>
+            </div>
+          </div>
+          <div class="node-item" style="cursor: pointer;">
+            <div class="node-item-icon" style="background: var(--color-bg-layout); color: var(--color-text-secondary);">📋</div>
+            <div class="node-item-info">
+              <div class="node-item-name">售后 IVR</div>
+              <div class="node-item-desc">技术支持流程</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Canvas -->
+      <div class="canvas-area">
+        <svg class="canvas-edges" style="position: absolute; top: 0; left: 0; width: 1200px; height: 800px;">
+          <!-- Edge: Answer → Play Prompt -->
+          <path d="M 260 80 C 290 80, 290 80, 320 80" stroke="#d9d9d9" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+          <!-- Edge: Play Prompt → Collect Digits -->
+          <path d="M 520 80 C 550 80, 550 80, 580 80" stroke="#d9d9d9" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+          <!-- Edge: Collect Digits → Transfer Sales (digit=1) -->
+          <path d="M 780 65 C 830 65, 830 50, 870 50" stroke="#1677ff" stroke-width="2" fill="none" marker-end="url(#arrowhead-blue)"/>
+          <!-- Edge: Collect Digits → Transfer Support (digit=2) -->
+          <path d="M 780 95 C 830 95, 830 150, 870 150" stroke="#1677ff" stroke-width="2" fill="none" marker-end="url(#arrowhead-blue)"/>
+          <defs>
+            <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#d9d9d9"/>
+            </marker>
+            <marker id="arrowhead-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#1677ff"/>
+            </marker>
+          </defs>
+        </svg>
+
+        <!-- Edge Labels -->
+        <div class="edge-label" style="top: 42px; left: 810px;">按 1 · 销售</div>
+        <div class="edge-label" style="top: 125px; left: 810px;">按 2 · 技术支持</div>
+
+        <div class="canvas-nodes">
+          <!-- Node: Answer -->
+          <div class="flow-node" style="left: 60px; top: 40px;">
+            <div class="flow-node-port flow-node-port-out"></div>
+            <div class="flow-node-header">
+              <div class="flow-node-icon" style="background: #f6ffed; color: var(--color-success);">📞</div>
+              <div class="flow-node-title">接听</div>
+            </div>
+            <div class="flow-node-body">自动接听</div>
+          </div>
+
+          <!-- Node: Play Prompt -->
+          <div class="flow-node selected" style="left: 320px; top: 40px;">
+            <div class="flow-node-port flow-node-port-in"></div>
+            <div class="flow-node-port flow-node-port-out"></div>
+            <div class="flow-node-header" style="background: var(--color-primary-bg);">
+              <div class="flow-node-icon" style="background: #e6f4ff; color: var(--color-primary);">🔊</div>
+              <div class="flow-node-title">播放提示音</div>
+            </div>
+            <div class="flow-node-body">
+              <div style="font-size: 12px; color: var(--color-text);">welcome.wav</div>
+              <div style="font-size: 11px; margin-top: 2px;">可打断: 是</div>
+            </div>
+          </div>
+
+          <!-- Node: Collect Digits -->
+          <div class="flow-node" style="left: 580px; top: 40px;">
+            <div class="flow-node-port flow-node-port-in"></div>
+            <div class="flow-node-port flow-node-port-out" style="right: -6px; top: 25px;"></div>
+            <div class="flow-node-port flow-node-port-out" style="right: -6px; top: auto; bottom: 15px;"></div>
+            <div class="flow-node-header">
+              <div class="flow-node-icon" style="background: #fff7e6; color: #d48806;">🔢</div>
+              <div class="flow-node-title">收号</div>
+            </div>
+            <div class="flow-node-body">
+              <div>提示: main_menu.wav</div>
+              <div>最大位数: 1 · 超时: 5s</div>
+            </div>
+          </div>
+
+          <!-- Node: Transfer Sales -->
+          <div class="flow-node" style="left: 870px; top: 10px;">
+            <div class="flow-node-port flow-node-port-in"></div>
+            <div class="flow-node-header">
+              <div class="flow-node-icon" style="background: #f9f0ff; color: #722ed1;">📲</div>
+              <div class="flow-node-title">转接 → 销售</div>
+            </div>
+            <div class="flow-node-body">
+              <div>目标: 销售队列</div>
+              <div>超时: 30s</div>
+            </div>
+          </div>
+
+          <!-- Node: Transfer Support -->
+          <div class="flow-node" style="left: 870px; top: 120px;">
+            <div class="flow-node-port flow-node-port-in"></div>
+            <div class="flow-node-header">
+              <div class="flow-node-icon" style="background: #f9f0ff; color: #722ed1;">📲</div>
+              <div class="flow-node-title">转接 → 技术支持</div>
+            </div>
+            <div class="flow-node-body">
+              <div>目标: 技术队列</div>
+              <div>超时: 30s</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Canvas Toolbar -->
+        <div class="canvas-toolbar">
+          <button class="toolbar-btn" title="撤销">↩</button>
+          <button class="toolbar-btn" title="重做">↪</button>
+          <span class="toolbar-divider"></span>
+          <button class="toolbar-btn" title="缩小">−</button>
+          <span class="toolbar-zoom">100%</span>
+          <button class="toolbar-btn" title="放大">+</button>
+          <button class="toolbar-btn" title="适应画布">⊞</button>
+          <span class="toolbar-divider"></span>
+          <button class="toolbar-btn" title="自动布局">⊟</button>
+          <button class="toolbar-btn" title="小地图">🗺</button>
+        </div>
+
+        <!-- Minimap -->
+        <div class="minimap">
+          <div class="minimap-viewport"></div>
+          <div class="minimap-node" style="top: 20%; left: 10%; width: 15%; height: 12%; background: var(--color-success);"></div>
+          <div class="minimap-node" style="top: 20%; left: 28%; width: 15%; height: 12%; background: var(--color-primary);"></div>
+          <div class="minimap-node" style="top: 20%; left: 46%; width: 15%; height: 12%; background: #d48806;"></div>
+          <div class="minimap-node" style="top: 8%; left: 65%; width: 15%; height: 12%; background: #722ed1;"></div>
+          <div class="minimap-node" style="top: 45%; left: 65%; width: 15%; height: 12%; background: #722ed1;"></div>
+        </div>
+      </div>
+
+      <!-- Property Panel -->
+      <div class="property-panel">
+        <div class="property-header">
+          <div class="property-title">🔊 播放提示音</div>
+          <span style="cursor: pointer; color: var(--color-text-quaternary); font-size: 16px;">✕</span>
+        </div>
+        <div class="property-body">
+          <div class="property-field">
+            <div class="property-label">节点名称</div>
+            <input class="property-input" value="播放提示音">
+          </div>
+
+          <div class="property-field">
+            <div class="property-label">提示音文件</div>
+            <select class="property-select">
+              <option selected>welcome.wav (欢迎致电 Nextswitch)</option>
+              <option>main_menu.wav (主菜单)</option>
+              <option>hold_music.mp3 (等待音乐)</option>
+              <option>after_hours.wav (非工作时间)</option>
+            </select>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+              <button class="btn btn-sm" style="font-size: 12px;">▶ 试听</button>
+              <button class="btn btn-sm" style="font-size: 12px;">📤 上传</button>
+            </div>
+          </div>
+
+          <div class="property-field">
+            <div class="property-label">可打断</div>
+            <div class="property-switch">
+              <div class="switch on"></div>
+              <span style="font-size: 13px; color: var(--color-text-secondary);">允许客户按键打断播放</span>
+            </div>
+            <div class="property-hint">开启后，客户在播放过程中按任意键可跳过提示音</div>
+          </div>
+
+          <div class="property-field">
+            <div class="property-label">音量</div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="range" min="0" max="100" value="80" style="flex: 1;">
+              <span style="font-size: 13px; color: var(--color-text-secondary); min-width: 35px;">80%</span>
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid var(--color-border-secondary); padding-top: 16px; margin-top: 16px;">
+            <div style="font-size: 13px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 12px;">连线信息</div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+              <span style="color: var(--color-text-tertiary);">入线:</span>
+              <span class="tag" style="font-size: 11px;">接听</span>
+              <span style="color: var(--color-text-tertiary); margin-left: 8px;">出线:</span>
+              <span class="tag" style="font-size: 11px;">收号</span>
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid var(--color-border-secondary); padding-top: 16px; margin-top: 16px;">
+            <button class="btn btn-danger btn-block" style="font-size: 13px;">🗑 删除节点</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>坐席工作台 — Nextswitch</title>
+  <link rel="stylesheet" href="css/design-system.css">
+  <style>
+    .workbench-content {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--spacing-md);
+    }
+    .metric-card {
+      background: var(--color-bg);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--color-border-secondary);
+      padding: var(--spacing-lg);
+    }
+    .metric-card-label {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-tertiary);
+      margin-bottom: var(--spacing-xxs);
+    }
+    .metric-card-value {
+      font-size: 28px;
+      font-weight: var(--font-weight-bold);
+      color: var(--color-text);
+    }
+    .metric-card-trend {
+      font-size: var(--font-size-sm);
+      margin-top: var(--spacing-xxs);
+    }
+    .trend-up { color: var(--color-success); }
+    .trend-down { color: var(--color-error); }
+
+    .sider-section {
+      padding: var(--spacing-md);
+    }
+    .sider-section-title {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: var(--spacing-xs);
+      padding: 0 var(--spacing-xs);
+    }
+    .agent-status-card {
+      background: var(--color-success-bg);
+      border: 1px solid var(--color-success-border);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+      margin-bottom: var(--spacing-md);
+    }
+    .agent-status-name {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-text);
+    }
+    .agent-status-ext {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+    }
+    .agent-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      margin-top: var(--spacing-xs);
+    }
+    .agent-status-badge.ready {
+      background: var(--color-success);
+      color: #fff;
+    }
+    .skill-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-sm);
+      margin: 2px;
+    }
+
+    .queue-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--radius);
+      transition: background var(--motion-duration);
+    }
+    .queue-item:hover {
+      background: rgba(0,0,0,0.04);
+    }
+    .queue-item-name {
+      font-size: var(--font-size);
+      color: var(--color-text);
+    }
+    .queue-item-stats {
+      display: flex;
+      gap: var(--spacing-sm);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-tertiary);
+    }
+
+    .right-panel-section {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--color-border-secondary);
+    }
+    .right-panel-title {
+      font-size: var(--font-size);
+      font-weight: var(--font-weight-bold);
+      color: var(--color-text);
+      margin-bottom: var(--spacing-sm);
+    }
+    .caller-card {
+      background: var(--color-bg-layout);
+      border-radius: var(--radius);
+      padding: var(--spacing-sm);
+    }
+    .caller-name {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-bold);
+    }
+    .caller-phone {
+      font-size: var(--font-size);
+      color: var(--color-text-secondary);
+      font-family: 'SF Mono', monospace;
+    }
+    .caller-tag {
+      margin-top: var(--spacing-xs);
+    }
+    .call-history-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-xs) 0;
+      border-bottom: 1px solid var(--color-border-secondary);
+    }
+    .call-history-item:last-child { border-bottom: none; }
+    .call-history-time {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-tertiary);
+      min-width: 50px;
+    }
+    .call-history-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    .call-history-icon.inbound { background: var(--color-success-bg); color: var(--color-success); }
+    .call-history-icon.outbound { background: var(--color-primary-bg); color: var(--color-primary); }
+    .call-history-info { flex: 1; }
+    .call-history-name { font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); }
+    .call-history-detail { font-size: var(--font-size-sm); color: var(--color-text-tertiary); }
+    .call-history-duration { font-size: var(--font-size-sm); color: var(--color-text-tertiary); }
+
+    .ai-assist-card {
+      background: linear-gradient(135deg, #f0f5ff 0%, #f9f0ff 100%);
+      border-radius: var(--radius);
+      padding: var(--spacing-sm);
+      border: 1px solid #d6e4ff;
+    }
+    .ai-assist-label {
+      font-size: var(--font-size-sm);
+      color: #722ed1;
+      font-weight: var(--font-weight-medium);
+      margin-bottom: var(--spacing-xxs);
+    }
+    .ai-assist-text {
+      font-size: var(--font-size-sm);
+      color: var(--color-text);
+      line-height: 1.6;
+    }
+
+    .quick-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .quick-action-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: var(--font-size);
+      color: var(--color-text);
+      transition: background var(--motion-duration);
+    }
+    .quick-action-item:hover {
+      background: rgba(0,0,0,0.04);
+    }
+    .quick-action-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout" style="height: 100vh;">
+    <!-- Header -->
+    <header class="layout-header">
+      <div class="layout-header-logo">
+        <svg viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="6" fill="#1677ff"/><path d="M7 14h14M14 7v14" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>
+        Nextswitch
+      </div>
+      <div class="layout-header-actions">
+        <div class="topbar-search">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="搜索分机、坐席、队列...">
+        </div>
+        <div class="topbar-badge">
+          🔔
+          <span class="badge-count">3</span>
+        </div>
+        <div class="topbar-user">
+          <div class="topbar-avatar">张</div>
+          <span>张坐席</span>
+          <span style="color: var(--color-text-quaternary); font-size: 12px;">▾</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 4px 8px; border-radius: 6px;">
+          <span style="font-size: 16px;">🌐</span>
+          <span style="font-size: 12px; color: var(--color-text-secondary);">中/EN</span>
+        </div>
+        <div style="cursor: pointer; padding: 4px; font-size: 18px; color: var(--color-text-secondary);">⚙️</div>
+      </div>
+    </header>
+
+    <!-- Body -->
+    <div class="layout-body" style="flex: 1; overflow: hidden;">
+      <!-- Left Sider -->
+      <aside class="layout-sider">
+        <!-- Agent Status -->
+        <div class="sider-section">
+          <div class="agent-status-card">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div class="agent-status-name">张坐席</div>
+                <div class="agent-status-ext">分机 1001</div>
+              </div>
+              <div class="agent-status-badge ready">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: #fff;"></span>
+                就绪
+              </div>
+            </div>
+            <div style="margin-top: 8px; font-size: 12px; color: var(--color-text-tertiary);">
+              签入时间 09:00 · 已在线 3h 24m
+            </div>
+          </div>
+
+          <!-- Skills -->
+          <div class="sider-section-title">技能组</div>
+          <div style="padding: 0 4px;">
+            <span class="skill-tag tag-success"><span class="status-dot status-dot-online" style="margin:0"></span>销售队列</span>
+            <span class="skill-tag tag-processing"><span class="status-dot status-dot-online" style="margin:0"></span>技术队列</span>
+          </div>
+        </div>
+
+        <div class="divider" style="margin: 0;"></div>
+
+        <!-- Queue Overview -->
+        <div class="sider-section">
+          <div class="sider-section-title">队列概览</div>
+          <div class="queue-item">
+            <div class="queue-item-name">销售队列</div>
+            <div class="queue-item-stats">
+              <span>等待 <b style="color: var(--color-warning);">3</b></span>
+              <span>空闲 <b style="color: var(--color-success);">5</b></span>
+            </div>
+          </div>
+          <div class="queue-item">
+            <div class="queue-item-name">技术队列</div>
+            <div class="queue-item-stats">
+              <span>等待 <b style="color: var(--color-warning);">1</b></span>
+              <span>空闲 <b style="color: var(--color-success);">2</b></span>
+            </div>
+          </div>
+          <div class="queue-item">
+            <div class="queue-item-name">售后队列</div>
+            <div class="queue-item-stats">
+              <span>等待 <b style="color: var(--color-text-quaternary);">0</b></span>
+              <span>空闲 <b style="color: var(--color-success);">3</b></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider" style="margin: 0;"></div>
+
+        <!-- Quick Actions -->
+        <div class="sider-section">
+          <div class="sider-section-title">快捷操作</div>
+          <div class="quick-actions">
+            <div class="quick-action-item">
+              <div class="quick-action-icon" style="background: var(--color-primary-bg); color: var(--color-primary);">📞</div>
+              外呼
+            </div>
+            <div class="quick-action-item">
+              <div class="quick-action-icon" style="background: #f0f5ff; color: #2f54eb;">📋</div>
+              通话记录
+            </div>
+            <div class="quick-action-item">
+              <div class="quick-action-icon" style="background: #f9f0ff; color: #722ed1;">📖</div>
+              知识库
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="layout-content">
+        <!-- Metrics -->
+        <div class="workbench-content" style="margin-bottom: var(--spacing-lg);">
+          <div class="metric-card">
+            <div class="metric-card-label">今日通话</div>
+            <div class="metric-card-value">23</div>
+            <div class="metric-card-trend trend-up">↑ 12% 较昨日</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card-label">总通话时长</div>
+            <div class="metric-card-value">3h 42m</div>
+            <div class="metric-card-trend trend-up">↑ 8% 较昨日</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card-label">平均处理时长</div>
+            <div class="metric-card-value">9m 38s</div>
+            <div class="metric-card-trend trend-down">↓ 5% 较昨日</div>
+          </div>
+        </div>
+
+        <!-- Recent Calls Table -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-header-title">最近通话</div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-sm">今日</button>
+              <button class="btn btn-sm">本周</button>
+              <button class="btn btn-sm">全部</button>
+            </div>
+          </div>
+          <div class="card-body" style="padding: 0;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background: #fafafa; border-bottom: 1px solid var(--color-border-secondary);">
+                  <th style="padding: 12px 16px; text-align: left; font-weight: 500; font-size: 14px; color: var(--color-text-secondary);">时间</th>
+                  <th style="padding: 12px 16px; text-align: left; font-weight: 500; font-size: 14px; color: var(--color-text-secondary);">方向</th>
+                  <th style="padding: 12px 16px; text-align: left; font-weight: 500; font-size: 14px; color: var(--color-text-secondary);">对方号码</th>
+                  <th style="padding: 12px 16px; text-align: left; font-weight: 500; font-size: 14px; color: var(--color-text-secondary);">客户</th>
+                  <th style="padding: 12px 16px; text-align: left; font-weight: 500; font-size: 14px; color: var(--color-text-secondary);">时长</th>
+                  <th style="padding: 12px 16px; text-align: left; font-weight: 500; font-size: 14px; color: var(--color-text-secondary);">状态</th>
+                  <th style="padding: 12px 16px; text-align: right; font-weight: 500; font-size: 14px; color: var(--color-text-secondary);">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid var(--color-border-secondary);">
+                  <td style="padding: 12px 16px; font-size: 14px;">10:23:45</td>
+                  <td style="padding: 12px 16px;"><span class="tag tag-success">呼入</span></td>
+                  <td style="padding: 12px 16px; font-family: 'SF Mono', monospace;">138-1234-5678</td>
+                  <td style="padding: 12px 16px;">王先生</td>
+                  <td style="padding: 12px 16px;">5m 32s</td>
+                  <td style="padding: 12px 16px;"><span class="tag">已处理</span></td>
+                  <td style="padding: 12px 16px; text-align: right;">
+                    <button class="btn btn-text btn-sm">回拨</button>
+                    <button class="btn btn-text btn-sm">详情</button>
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--color-border-secondary);">
+                  <td style="padding: 12px 16px; font-size: 14px;">10:15:20</td>
+                  <td style="padding: 12px 16px;"><span class="tag tag-processing">呼出</span></td>
+                  <td style="padding: 12px 16px; font-family: 'SF Mono', monospace;">139-8765-4321</td>
+                  <td style="padding: 12px 16px;">李女士</td>
+                  <td style="padding: 12px 16px;">3m 18s</td>
+                  <td style="padding: 12px 16px;"><span class="tag">已处理</span></td>
+                  <td style="padding: 12px 16px; text-align: right;">
+                    <button class="btn btn-text btn-sm">回拨</button>
+                    <button class="btn btn-text btn-sm">详情</button>
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--color-border-secondary);">
+                  <td style="padding: 12px 16px; font-size: 14px;">09:58:10</td>
+                  <td style="padding: 12px 16px;"><span class="tag tag-success">呼入</span></td>
+                  <td style="padding: 12px 16px; font-family: 'SF Mono', monospace;">400-888-9999</td>
+                  <td style="padding: 12px 16px;">赵公司</td>
+                  <td style="padding: 12px 16px;">12m 05s</td>
+                  <td style="padding: 12px 16px;"><span class="tag">已处理</span></td>
+                  <td style="padding: 12px 16px; text-align: right;">
+                    <button class="btn btn-text btn-sm">回拨</button>
+                    <button class="btn btn-text btn-sm">详情</button>
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--color-border-secondary);">
+                  <td style="padding: 12px 16px; font-size: 14px;">09:42:33</td>
+                  <td style="padding: 12px 16px;"><span class="tag tag-success">呼入</span></td>
+                  <td style="padding: 12px 16px; font-family: 'SF Mono', monospace;">135-5678-1234</td>
+                  <td style="padding: 12px 16px;">—</td>
+                  <td style="padding: 12px 16px;">0m 45s</td>
+                  <td style="padding: 12px 16px;"><span class="tag tag-error">未接</span></td>
+                  <td style="padding: 12px 16px; text-align: right;">
+                    <button class="btn btn-text btn-sm">回拨</button>
+                    <button class="btn btn-text btn-sm">详情</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 16px; font-size: 14px;">09:30:00</td>
+                  <td style="padding: 12px 16px;"><span class="tag tag-processing">呼出</span></td>
+                  <td style="padding: 12px 16px; font-family: 'SF Mono', monospace;">1002</td>
+                  <td style="padding: 12px 16px;">李坐席</td>
+                  <td style="padding: 12px 16px;">1m 20s</td>
+                  <td style="padding: 12px 16px;"><span class="tag">已处理</span></td>
+                  <td style="padding: 12px 16px; text-align: right;">
+                    <button class="btn btn-text btn-sm">回拨</button>
+                    <button class="btn btn-text btn-sm">详情</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+
+      <!-- Right Panel -->
+      <aside class="layout-right-panel">
+        <!-- Caller Info -->
+        <div class="right-panel-section">
+          <div class="right-panel-title">当前客户</div>
+          <div class="caller-card">
+            <div class="caller-name">王先生</div>
+            <div class="caller-phone">138-1234-5678</div>
+            <div class="caller-tag">
+              <span class="tag tag-warning">VIP 客户</span>
+              <span class="tag" style="margin-left: 4px;">第 3 次来电</span>
+            </div>
+            <div style="margin-top: 12px; font-size: 12px; color: var(--color-text-tertiary);">
+              上次通话: 2026-09-08 14:30<br>
+              上次处理: 产品咨询 — 已解决
+            </div>
+          </div>
+        </div>
+
+        <!-- Call History -->
+        <div class="right-panel-section">
+          <div class="right-panel-title">通话记录</div>
+          <div class="call-history-item">
+            <div class="call-history-time">10:23</div>
+            <div class="call-history-icon inbound">📥</div>
+            <div class="call-history-info">
+              <div class="call-history-name">王先生</div>
+              <div class="call-history-detail">产品咨询</div>
+            </div>
+            <div class="call-history-duration">5m 32s</div>
+          </div>
+          <div class="call-history-item">
+            <div class="call-history-time">10:15</div>
+            <div class="call-history-icon outbound">📤</div>
+            <div class="call-history-info">
+              <div class="call-history-name">李女士</div>
+              <div class="call-history-detail">回访</div>
+            </div>
+            <div class="call-history-duration">3m 18s</div>
+          </div>
+          <div class="call-history-item">
+            <div class="call-history-time">09:58</div>
+            <div class="call-history-icon inbound">📥</div>
+            <div class="call-history-info">
+              <div class="call-history-name">赵公司</div>
+              <div class="call-history-detail">技术支持</div>
+            </div>
+            <div class="call-history-duration">12m 05s</div>
+          </div>
+        </div>
+
+        <!-- AI Assist -->
+        <div class="right-panel-section" style="border-bottom: none;">
+          <div class="right-panel-title">AI 辅助</div>
+          <div class="ai-assist-card">
+            <div class="ai-assist-label">🤖 客户意图识别</div>
+            <div class="ai-assist-text">
+              产品咨询 — 客户对 Nextswitch 企业版的价格和功能差异有疑问，建议发送对比文档。
+            </div>
+          </div>
+          <div class="ai-assist-card" style="margin-top: 8px;">
+            <div class="ai-assist-label">💬 建议话术</div>
+            <div class="ai-assist-text">
+              "王先生您好，关于您上次咨询的企业版功能，我这边可以为您发送一份详细的功能对比文档，方便您参考..."
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- CallBar: Ready State -->
+    <div class="callbar callbar-ready">
+      <div class="callbar-status" style="background: var(--color-success-bg); border: 1px solid var(--color-success-border); border-radius: 6px;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--color-success);"></span>
+        <span style="color: var(--color-success); font-weight: 500;">就绪</span>
+        <span style="color: var(--color-text-quaternary); font-size: 12px;">▾</span>
+      </div>
+      <div class="callbar-info">
+        <div class="topbar-avatar" style="width: 32px; height: 32px; font-size: 13px;">张</div>
+        <div>
+          <div style="font-weight: 500; font-size: 14px;">1001</div>
+          <div style="font-size: 12px; color: var(--color-text-tertiary);">张坐席</div>
+        </div>
+      </div>
+      <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+        <div style="position: relative; width: 320px;">
+          <div style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--color-text-quaternary);">📞</div>
+          <input class="input" style="padding-left: 32px; border-radius: 20px;" placeholder="输入号码或姓名搜索...">
+        </div>
+      </div>
+      <div class="callbar-actions">
+        <button class="btn" style="border-radius: 20px;">
+          <span>📞</span> 拨号
+        </button>
+        <button class="btn" style="border-radius: 20px;">
+          <span>📋</span> 最近
+        </button>
+        <button class="btn" style="border-radius: 20px;">
+          <span>📖</span> 通讯录
+        </button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

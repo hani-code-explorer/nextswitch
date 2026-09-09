@@ -1,0 +1,1029 @@
+openapi: 3.0.3
+info:
+  title: Nextswitch CTI API
+  description: |
+    Computer Telephony Integration (CTI) API for Nextswitch VoIP Switch.
+    
+    ## 概述
+    
+    CTI API 提供呼叫中心坐席控制和呼叫管理功能，支持：
+    - 坐席状态管理（签入/签出/状态变更）
+    - 呼叫控制（拨号/应答/转接/会议/保持）
+    - 实时事件订阅（WebSocket）
+    - 队列监控与统计
+    
+    ## 认证
+    
+    所有 REST API 请求需要在 Header 中携带 JWT Token：
+    ```
+    Authorization: Bearer <access_token>
+    ```
+    
+    ## 事件订阅
+    
+    实时事件通过 WebSocket 推送。WebSocket 端点不在 URL 中传递 token，
+    而是通过连接后的 JSON-RPC 2.0 认证握手完成身份验证：
+    
+    1. 建立 WebSocket 连接到 `wss://{host}/api/v1/cti/events`
+    2. 发送 JSON-RPC auth 消息携带 token
+    3. 等待认证成功响应后开始接收事件
+    
+    详见下方 WebSocket 事件定义部分。
+    
+    ## 错误响应格式
+    
+    所有错误响应使用统一格式，外层以 `error` 字段包裹：
+    ```json
+    {
+      "error": {
+        "code": "AGENT_NOT_SIGNED_IN",
+        "message": "Agent must be signed in to perform this action",
+        "details": [
+          { "field": "agentId", "message": "No active session found" }
+        ],
+        "request_id": "req_abc123"
+      }
+    }
+    ```
+    注意：`request_id` 由 API Gateway 在转发响应时自动附加。
+    
+    ## Change History
+    
+    | Version | Date | Changes |
+    |---------|------|---------|
+    | 1.0.0 | 2026-09-09 | Initial draft |
+    | 2.0.0 | 2026-09-09 | Remove token from WebSocket URL (use JSON-RPC auth only); wrap ErrorResponse with `error` object; change `details` from object to array of {field, message}; add `request_id` to error response |
+  version: 2.0.0
+  contact:
+    name: Nextswitch Team
+
+servers:
+  - url: http://localhost:8083/api/v1/cti
+    description: 本地开发环境 (cti-server HTTP port)
+  - url: https://api.nextswitch.io/api/v1/cti
+    description: 生产环境
+
+tags:
+  - name: Agent
+    description: 坐席管理
+  - name: Call
+    description: 呼叫控制
+  - name: Queue
+    description: 队列管理
+  - name: Event
+    description: 事件订阅
+
+paths:
+  # ============ 坐席管理 ============
+  /agents/signin:
+    post:
+      tags:
+        - Agent
+      summary: 坐席签入
+      description: 坐席登录系统，开始接收呼叫分配
+      operationId: agentSignIn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentSignInRequest'
+      responses:
+        '200':
+          description: 签入成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSignInResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: 坐席已在其他位置签入
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /agents/signout:
+    post:
+      tags:
+        - Agent
+      summary: 坐席签出
+      description: 坐席退出系统，停止接收呼叫分配
+      operationId: agentSignOut
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentSignOutRequest'
+      responses:
+        '200':
+          description: 签出成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /agents/status:
+    get:
+      tags:
+        - Agent
+      summary: 查询坐席状态
+      description: 获取当前坐席的状态信息
+      operationId: getAgentStatus
+      responses:
+        '200':
+          description: 坐席状态
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentStatusDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /agents/state:
+    put:
+      tags:
+        - Agent
+      summary: 变更坐席状态
+      description: 手动变更坐席状态（就绪/未就绪/小休等）
+      operationId: changeAgentState
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeAgentStateRequest'
+      responses:
+        '200':
+          description: 状态变更成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentStatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /agents/{agentId}/force-state:
+    post:
+      tags:
+        - Agent
+      summary: 强制变更坐席状态
+      description: 主管强制变更指定坐席的状态（需要主管权限）
+      operationId: forceAgentState
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForceAgentStateRequest'
+      responses:
+        '200':
+          description: 强制状态变更成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentStatusResponse'
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 坐席不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============ 呼叫控制 ============
+  /calls/make:
+    post:
+      tags:
+        - Call
+      summary: 发起呼叫
+      description: 坐席发起外呼或内部呼叫
+      operationId: makeCall
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MakeCallRequest'
+      responses:
+        '200':
+          description: 呼叫发起成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /calls/{callId}/answer:
+    post:
+      tags:
+        - Call
+      summary: 应答呼叫
+      description: 坐席应答来电
+      operationId: answerCall
+      parameters:
+        - name: callId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 应答成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallInfo'
+        '404':
+          description: 呼叫不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 呼叫状态不允许应答
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /calls/{callId}/hangup:
+    post:
+      tags:
+        - Call
+      summary: 挂断呼叫
+      description: 挂断指定呼叫
+      operationId: hangupCall
+      parameters:
+        - name: callId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HangupRequest'
+      responses:
+        '200':
+          description: 挂断成功
+        '404':
+          description: 呼叫不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /calls/{callId}/hold:
+    post:
+      tags:
+        - Call
+      summary: 保持呼叫
+      description: 将呼叫置于保持状态
+      operationId: holdCall
+      parameters:
+        - name: callId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 保持成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallInfo'
+        '404':
+          description: 呼叫不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 呼叫状态不允许保持
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /calls/{callId}/unhold:
+    post:
+      tags:
+        - Call
+      summary: 恢复呼叫
+      description: 从保持状态恢复呼叫
+      operationId: unholdCall
+      parameters:
+        - name: callId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 恢复成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallInfo'
+        '404':
+          description: 呼叫不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 呼叫未在保持状态
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /calls/{callId}/transfer:
+    post:
+      tags:
+        - Call
+      summary: 转接呼叫
+      description: 将呼叫转接到其他坐席或队列
+      operationId: transferCall
+      parameters:
+        - name: callId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+      responses:
+        '200':
+          description: 转接发起成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: 呼叫不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /calls/{callId}/conference:
+    post:
+      tags:
+        - Call
+      summary: 发起会议
+      description: 将当前呼叫与另一通呼叫合并为会议
+      operationId: conferenceCall
+      parameters:
+        - name: callId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConferenceRequest'
+      responses:
+        '200':
+          description: 会议创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: 呼叫不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /calls/{callId}/dtmf:
+    post:
+      tags:
+        - Call
+      summary: 发送 DTMF
+      description: 向呼叫发送 DTMF 信号
+      operationId: sendDtmf
+      parameters:
+        - name: callId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DtmfRequest'
+      responses:
+        '200':
+          description: DTMF 发送成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: 呼叫不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============ 队列管理 ============
+  /queues:
+    get:
+      tags:
+        - Queue
+      summary: 获取队列列表
+      description: 获取所有队列的实时状态
+      operationId: listQueues
+      responses:
+        '200':
+          description: 队列列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QueueStatus'
+
+  /queues/{queueId}:
+    get:
+      tags:
+        - Queue
+      summary: 获取队列详情
+      description: 获取指定队列的实时状态和统计信息
+      operationId: getQueue
+      parameters:
+        - name: queueId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 队列详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueDetail'
+        '404':
+          description: 队列不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /queues/{queueId}/agents:
+    get:
+      tags:
+        - Queue
+      summary: 获取队列坐席
+      description: 获取指定队列中的坐席列表及其状态
+      operationId: getQueueAgents
+      parameters:
+        - name: queueId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 坐席列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QueueAgent'
+
+  /queues/{queueId}/calls:
+    get:
+      tags:
+        - Queue
+      summary: 获取队列中的呼叫
+      description: 获取指定队列中等待的呼叫列表
+      operationId: getQueueCalls
+      parameters:
+        - name: queueId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 呼叫列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QueuedCall'
+
+# ============ 组件定义 ============
+components:
+  schemas:
+    # 坐席相关
+    AgentSignInRequest:
+      type: object
+      required:
+        - agentId
+        - skillGroups
+      properties:
+        agentId:
+          type: string
+          description: 坐席 ID
+        skillGroups:
+          type: array
+          items:
+            type: string
+          description: 签入的技能组列表
+        initialState:
+          type: string
+          enum: [ready, not_ready]
+          default: ready
+          description: 初始状态
+
+    AgentSignInResponse:
+      type: object
+      properties:
+        agentId:
+          type: string
+        status:
+          $ref: '#/components/schemas/AgentStatus'
+        signedInAt:
+          type: string
+          format: date-time
+        skillGroups:
+          type: array
+          items:
+            type: string
+
+    AgentSignOutRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: 签出原因
+
+    AgentStatus:
+      type: string
+      enum:
+        - signed_out
+        - ready
+        - not_ready
+        - busy
+        - wrap_up
+        - break
+        - monitoring
+        - training
+      description: |
+        坐席状态：
+        * signed_out - 未签入
+        * ready - 就绪，可接收呼叫
+        * not_ready - 未就绪
+        * busy - 通话中
+        * wrap_up - 话后处理
+        * break - 小休
+        * monitoring - 监听中
+        * training - 培训中
+
+    AgentStatusResponse:
+      type: object
+      properties:
+        agentId:
+          type: string
+        status:
+          $ref: '#/components/schemas/AgentStatus'
+        statusReason:
+          type: string
+          description: 状态原因码
+        changedAt:
+          type: string
+          format: date-time
+
+    AgentStatusDetail:
+      type: object
+      properties:
+        agentId:
+          type: string
+        agentName:
+          type: string
+        status:
+          $ref: '#/components/schemas/AgentStatus'
+        statusReason:
+          type: string
+        signedInAt:
+          type: string
+          format: date-time
+        statusChangedAt:
+          type: string
+          format: date-time
+        skillGroups:
+          type: array
+          items:
+            type: string
+        currentCallId:
+          type: string
+          nullable: true
+          description: 当前处理的呼叫 ID
+
+    ChangeAgentStateRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: '#/components/schemas/AgentStatus'
+        reason:
+          type: string
+          description: 状态变更原因
+        duration:
+          type: integer
+          description: 预期持续时间（秒），用于小休等状态
+
+    ForceAgentStateRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: '#/components/schemas/AgentStatus'
+        reason:
+          type: string
+          description: 强制变更原因
+        notifyAgent:
+          type: boolean
+          default: true
+          description: 是否通知坐席
+
+    # 呼叫相关
+    MakeCallRequest:
+      type: object
+      required:
+        - callee
+      properties:
+        callee:
+          type: string
+          description: 被叫号码或分机号
+        callerId:
+          type: string
+          description: 主叫显示号码
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: 自定义 SIP Header
+
+    CallInfo:
+      type: object
+      properties:
+        callId:
+          type: string
+        caller:
+          type: string
+        callee:
+          type: string
+        state:
+          type: string
+          enum: [initiating, ringing, active, held, conferencing, terminated]
+        direction:
+          type: string
+          enum: [inbound, outbound, internal]
+        agentId:
+          type: string
+        queueId:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+        answeredAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    HangupRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: 挂断原因码
+
+    TransferRequest:
+      type: object
+      required:
+        - target
+        - type
+      properties:
+        target:
+          type: string
+          description: 转接目标（分机号或队列 ID）
+        type:
+          type: string
+          enum: [blind, consult]
+          description: |
+            转接类型：
+            * blind - 盲转，直接转接
+            * consult - 咨询转，先与目标通话再转接
+        announce:
+          type: string
+          description: 咨询转时的 announcements
+
+    ConferenceRequest:
+      type: object
+      required:
+        - otherCallId
+      properties:
+        otherCallId:
+          type: string
+          description: 要合并的另一通呼叫 ID
+
+    DtmfRequest:
+      type: object
+      required:
+        - digits
+      properties:
+        digits:
+          type: string
+          description: DTMF 数字序列（0-9, *, #）
+        duration:
+          type: integer
+          default: 100
+          description: 每个数字的持续时间（毫秒）
+
+    # 队列相关
+    QueueStatus:
+      type: object
+      properties:
+        queueId:
+          type: string
+        queueName:
+          type: string
+        waitingCalls:
+          type: integer
+          description: 等待中的呼叫数
+        availableAgents:
+          type: integer
+          description: 可用坐席数
+        busyAgents:
+          type: integer
+          description: 忙碌坐席数
+        longestWaitTime:
+          type: integer
+          description: 最长等待时间（秒）
+        estimatedWaitTime:
+          type: integer
+          description: 预估等待时间（秒）
+
+    QueueDetail:
+      type: object
+      properties:
+        queueId:
+          type: string
+        queueName:
+          type: string
+        skillGroups:
+          type: array
+          items:
+            type: string
+        waitingCalls:
+          type: integer
+        availableAgents:
+          type: integer
+        busyAgents:
+          type: integer
+        notReadyAgents:
+          type: integer
+        longestWaitTime:
+          type: integer
+        estimatedWaitTime:
+          type: integer
+        totalCallsToday:
+          type: integer
+        answeredCallsToday:
+          type: integer
+        abandonedCallsToday:
+          type: integer
+        averageWaitTimeToday:
+          type: integer
+        averageTalkTimeToday:
+          type: integer
+
+    QueueAgent:
+      type: object
+      properties:
+        agentId:
+          type: string
+        agentName:
+          type: string
+        status:
+          $ref: '#/components/schemas/AgentStatus'
+        currentCallId:
+          type: string
+          nullable: true
+        statusDuration:
+          type: integer
+          description: 当前状态持续时间（秒）
+
+    QueuedCall:
+      type: object
+      properties:
+        callId:
+          type: string
+        caller:
+          type: string
+        queuePosition:
+          type: integer
+        waitTime:
+          type: integer
+          description: 已等待时间（秒）
+        priority:
+          type: integer
+          default: 0
+
+    # 统一错误响应格式
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: 错误码（如 AGENT_NOT_SIGNED_IN）
+            message:
+              type: string
+              description: 人类可读的错误描述
+            details:
+              type: array
+              description: 字段级别的错误详情列表
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    description: 出错的字段名
+                  message:
+                    type: string
+                    description: 该字段的具体错误信息
+            request_id:
+              type: string
+              description: 请求追踪 ID（由 API Gateway 自动附加）
+
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: 认证失败
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []
+
+# ============ WebSocket 事件定义 ============
+#
+# 连接地址: wss://{host}/api/v1/cti/events
+#
+# 注意：不在 URL 中传递 token。认证通过连接后的 JSON-RPC 2.0 握手完成。
+# 这与信令服务器（signalserver）不同——信令服务器使用 URL 参数传递 token
+# 和 extension，因为信令连接需要在建立时立即绑定分机号。
+# CTI WebSocket 的认证流程更灵活：先连接，再通过 JSON-RPC auth 消息验证。
+#
+# 认证流程（JSON-RPC 2.0 风格）:
+#
+# 1. 建立 WebSocket 连接到 wss://{host}/api/v1/cti/events（不传 token）
+#
+# 2. 客户端发送认证请求:
+# {
+#   "jsonrpc": "2.0",
+#   "method": "auth",
+#   "params": { "token": "<access_token>" },
+#   "id": 1
+# }
+#
+# 3. 服务端认证成功响应:
+# {
+#   "jsonrpc": "2.0",
+#   "result": { "authenticated": true },
+#   "id": 1
+# }
+#
+# 或认证失败响应:
+# {
+#   "jsonrpc": "2.0",
+#   "error": { "code": -32000, "message": "Authentication failed" },
+#   "id": 1
+# }
+#
+# 4. 认证成功后，服务端开始推送事件
+#
+# 事件消息格式:
+# {
+#   "event": "agent.state_changed",
+#   "data": { ... },
+#   "timestamp": "2026-09-09T10:30:00Z",
+#   "correlationId": "uuid"
+# }
+#
+# 支持的事件类型:
+#
+# 坐席事件:
+# - agent.signed_in: 坐席签入
+# - agent.signed_out: 坐席签出
+# - agent.state_changed: 坐席状态变更
+#
+# 呼叫事件:
+# - call.ringing: 呼叫振铃
+# - call.answered: 呼叫应答
+# - call.held: 呼叫保持
+# - call.unheld: 呼叫恢复
+# - call.transferred: 呼叫转接
+# - call.conferenced: 呼叫进入会议
+# - call.terminated: 呼叫结束
+#
+# 队列事件:
+# - queue.call_queued: 呼叫进入队列
+# - queue.call_dequeued: 呼叫离开队列（分配给坐席或放弃）
+# - queue.stats_updated: 队列统计更新
+#
+# 示例事件数据:
+#
+# agent.state_changed:
+# {
+#   "event": "agent.state_changed",
+#   "data": {
+#     "agentId": "agent_001",
+#     "previousState": "ready",
+#     "currentState": "busy",
+#     "callId": "call_abc123",
+#     "reason": "call_answered"
+#   },
+#   "timestamp": "2026-09-09T10:30:00Z"
+# }
+#
+# call.ringing:
+# {
+#   "event": "call.ringing",
+#   "data": {
+#     "callId": "call_abc123",
+#     "caller": "13800138000",
+#     "callee": "8001",
+#     "direction": "inbound",
+#     "queueId": "queue_sales",
+#     "agentId": null
+#   },
+#   "timestamp": "2026-09-09T10:30:00Z"
+# }

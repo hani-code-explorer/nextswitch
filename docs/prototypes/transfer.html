@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>转接 + 咨询转 + DTMF — Nextswitch</title>
+  <link rel="stylesheet" href="css/design-system.css">
+  <style>
+    .page { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .section { margin-bottom: 40px; }
+    .section-title { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+    .section-desc { font-size: 13px; color: var(--color-text-tertiary); margin-bottom: 16px; }
+
+    /* Transfer Modal */
+    .transfer-modal {
+      background: var(--color-bg);
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      width: 520px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+    .transfer-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--color-border-secondary);
+    }
+    .transfer-header h3 { font-size: 16px; font-weight: 600; }
+    .transfer-body { padding: 20px 24px; }
+    .transfer-type-group {
+      display: flex; gap: 12px; margin-bottom: 16px;
+    }
+    .transfer-type-card {
+      flex: 1; padding: 12px; border: 1px solid var(--color-border);
+      border-radius: 8px; cursor: pointer; transition: all 0.2s;
+    }
+    .transfer-type-card.selected {
+      border-color: var(--color-primary);
+      background: var(--color-primary-bg);
+    }
+    .transfer-type-card:hover { border-color: var(--color-primary); }
+    .transfer-type-name { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+    .transfer-type-desc { font-size: 12px; color: var(--color-text-tertiary); }
+    .transfer-search {
+      position: relative; margin-bottom: 12px;
+    }
+    .transfer-search input {
+      width: 100%; height: 36px; padding: 4px 11px 4px 32px;
+      border: 1px solid var(--color-border); border-radius: 6px;
+      font-size: 14px; outline: none;
+    }
+    .transfer-search input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(22,119,255,0.1); }
+    .transfer-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--color-text-quaternary); }
+    .transfer-tabs {
+      display: flex; gap: 4px; margin-bottom: 12px;
+    }
+    .transfer-tab {
+      padding: 4px 12px; border-radius: 4px; font-size: 13px;
+      cursor: pointer; color: var(--color-text-secondary);
+      border: none; background: none;
+    }
+    .transfer-tab.active { background: var(--color-primary-bg); color: var(--color-primary); font-weight: 500; }
+    .transfer-tab:hover { background: rgba(0,0,0,0.04); }
+    .transfer-list { max-height: 260px; overflow-y: auto; }
+    .transfer-list-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 6px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .transfer-list-item:hover { background: rgba(0,0,0,0.04); }
+    .transfer-list-item.selected { background: var(--color-primary-bg); }
+    .transfer-list-item.disabled { opacity: 0.4; cursor: not-allowed; }
+    .transfer-agent-status {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .transfer-agent-info { flex: 1; }
+    .transfer-agent-name { font-size: 14px; font-weight: 500; }
+    .transfer-agent-detail { font-size: 12px; color: var(--color-text-tertiary); }
+    .transfer-agent-tag { font-size: 11px; }
+    .transfer-divider {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--color-text-tertiary);
+      margin: 8px 0;
+    }
+    .transfer-divider::before, .transfer-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--color-border-secondary);
+    }
+    .transfer-external {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 6px;
+      border: 1px solid var(--color-border-secondary);
+      margin-top: 8px;
+    }
+    .transfer-external input {
+      flex: 1; border: none; outline: none; font-size: 14px;
+      font-family: 'SF Mono', monospace;
+    }
+    .transfer-note {
+      margin-top: 16px;
+    }
+    .transfer-note label {
+      display: block; font-size: 13px; color: var(--color-text-secondary);
+      margin-bottom: 6px;
+    }
+    .transfer-note textarea {
+      width: 100%; height: 60px; padding: 8px 11px;
+      border: 1px solid var(--color-border); border-radius: 6px;
+      font-size: 14px; resize: none; outline: none;
+      font-family: inherit;
+    }
+    .transfer-note textarea:focus { border-color: var(--color-primary); }
+    .transfer-footer {
+      display: flex; justify-content: flex-end; gap: 8px;
+      padding: 12px 24px 16px;
+      border-top: 1px solid var(--color-border-secondary);
+    }
+
+    /* Consult Transfer Dual Call */
+    .dual-call-bar {
+      background: var(--color-bg);
+      border-radius: 12px;
+      border: 1px solid var(--color-border-secondary);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .dual-call-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 20px;
+      background: var(--color-primary-bg);
+      border-bottom: 1px solid var(--color-primary-border);
+    }
+    .dual-call-cards {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+      padding: 16px 20px;
+    }
+    .dual-call-card {
+      border: 1px solid var(--color-border-secondary);
+      border-radius: 8px; padding: 14px;
+      position: relative;
+    }
+    .dual-call-card.active { border-color: var(--color-primary); }
+    .dual-call-card.held { background: var(--color-warning-bg); border-color: var(--color-warning-border); }
+    .dual-call-card-label {
+      font-size: 11px; font-weight: 500; color: var(--color-text-tertiary);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .dual-call-card-name { font-size: 16px; font-weight: 600; }
+    .dual-call-card-sub { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
+    .dual-call-card-timer {
+      font-family: 'SF Mono', monospace; font-size: 18px;
+      font-weight: 500; margin-top: 8px;
+    }
+    .dual-call-card-status {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 12px; margin-top: 4px;
+    }
+    .dual-call-card-actions {
+      display: flex; gap: 6px; margin-top: 12px;
+    }
+    .dual-call-bottom {
+      display: flex; gap: 8px; padding: 12px 20px 16px;
+      border-top: 1px solid var(--color-border-secondary);
+    }
+
+    /* DTMF Pad */
+    .dtmf-container {
+      background: var(--color-bg);
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      width: 220px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+    .dtmf-header {
+      padding: 12px 16px 8px;
+      font-size: 13px; font-weight: 500;
+      color: var(--color-text-secondary);
+      text-align: center;
+    }
+    .dtmf-keys {
+      padding: 4px 16px 12px;
+    }
+    .dtmf-row {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 6px; margin-bottom: 6px;
+    }
+    .dtmf-key {
+      height: 44px; border-radius: 8px; border: none;
+      background: #f5f5f5; cursor: pointer;
+      font-size: 18px; font-weight: 500;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.1s; user-select: none;
+    }
+    .dtmf-key:hover { background: #ebebeb; }
+    .dtmf-key:active { background: #e0e0e0; transform: scale(0.93); }
+    .dtmf-key.pressed { background: var(--color-primary-bg); color: var(--color-primary); }
+    .dtmf-sent {
+      padding: 8px 16px 12px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--color-text-tertiary);
+      border-top: 1px solid var(--color-border-secondary);
+    }
+    .dtmf-sent-digits {
+      font-family: 'SF Mono', monospace;
+      font-size: 15px;
+      color: var(--color-primary);
+      letter-spacing: 3px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <a href="index.html" style="color: var(--color-primary); text-decoration: none; font-size: 14px;">← 返回原型列表</a>
+
+    <!-- Transfer Modal -->
+    <div class="section" style="margin-top: 16px;">
+      <div class="section-title">🔀 转接浮层 TransferModal</div>
+      <div class="section-desc">通话中点击"转接"按钮弹出，支持盲转和咨询转两种模式</div>
+
+      <div style="background: var(--color-bg-layout); border-radius: 12px; padding: 32px; display: flex; justify-content: center;">
+        <div class="transfer-modal">
+          <div class="transfer-header">
+            <h3>转接通话</h3>
+            <span style="cursor: pointer; color: var(--color-text-quaternary); font-size: 18px;">✕</span>
+          </div>
+          <div class="transfer-body">
+            <div class="transfer-type-group">
+              <div class="transfer-type-card selected">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--color-primary); display: flex; align-items: center; justify-content: center;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--color-primary);"></span>
+                  </span>
+                  <span class="transfer-type-name">盲转</span>
+                </div>
+                <div class="transfer-type-desc">直接转接到目标，不等待确认</div>
+              </div>
+              <div class="transfer-type-card">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--color-border);"></span>
+                  <span class="transfer-type-name">咨询转</span>
+                </div>
+                <div class="transfer-type-desc">先与目标沟通，再合并通话</div>
+              </div>
+            </div>
+
+            <div class="transfer-search">
+              <span class="transfer-search-icon">🔍</span>
+              <input type="text" placeholder="搜索分机、坐席姓名、队列...">
+            </div>
+
+            <div class="transfer-tabs">
+              <button class="transfer-tab active">全部</button>
+              <button class="transfer-tab">坐席</button>
+              <button class="transfer-tab">队列</button>
+              <button class="transfer-tab">分机</button>
+              <button class="transfer-tab">最近</button>
+            </div>
+
+            <div class="transfer-list">
+              <div class="transfer-list-item selected">
+                <span class="transfer-agent-status" style="background: var(--color-success);"></span>
+                <div class="transfer-agent-info">
+                  <div class="transfer-agent-name">李坐席 <span style="font-weight: 400; color: var(--color-text-tertiary);">(1002)</span></div>
+                  <div class="transfer-agent-detail">就绪 · 销售组</div>
+                </div>
+                <span class="tag tag-success transfer-agent-tag">在线</span>
+              </div>
+              <div class="transfer-list-item">
+                <span class="transfer-agent-status" style="background: var(--color-success);"></span>
+                <div class="transfer-agent-info">
+                  <div class="transfer-agent-name">赵坐席 <span style="font-weight: 400; color: var(--color-text-tertiary);">(1003)</span></div>
+                  <div class="transfer-agent-detail">就绪 · 销售组</div>
+                </div>
+                <span class="tag tag-success transfer-agent-tag">在线</span>
+              </div>
+              <div class="transfer-list-item">
+                <span class="transfer-agent-status" style="background: var(--color-primary);"></span>
+                <div class="transfer-agent-info">
+                  <div class="transfer-agent-name">孙坐席 <span style="font-weight: 400; color: var(--color-text-tertiary);">(1005)</span></div>
+                  <div class="transfer-agent-detail">通话中 · 销售组</div>
+                </div>
+                <span class="tag tag-processing transfer-agent-tag">通话中</span>
+              </div>
+              <div class="transfer-list-item">
+                <span class="transfer-agent-status" style="background: var(--color-warning);"></span>
+                <div class="transfer-agent-info">
+                  <div class="transfer-agent-name">周坐席 <span style="font-weight: 400; color: var(--color-text-tertiary);">(1008)</span></div>
+                  <div class="transfer-agent-detail">小休 · 销售组</div>
+                </div>
+                <span class="tag tag-warning transfer-agent-tag">小休</span>
+              </div>
+              <div class="transfer-list-item disabled">
+                <span class="transfer-agent-status" style="background: var(--color-text-quaternary);"></span>
+                <div class="transfer-agent-info">
+                  <div class="transfer-agent-name">钱坐席 <span style="font-weight: 400; color: var(--color-text-tertiary);">(1012)</span></div>
+                  <div class="transfer-agent-detail">未签入 · 销售组</div>
+                </div>
+                <span class="tag transfer-agent-tag">离线</span>
+              </div>
+
+              <div class="transfer-divider">队列</div>
+
+              <div class="transfer-list-item">
+                <span style="font-size: 16px; width: 8px; text-align: center;">📋</span>
+                <div class="transfer-agent-info">
+                  <div class="transfer-agent-name">销售队列</div>
+                  <div class="transfer-agent-detail">等待: 3 · 空闲: 5</div>
+                </div>
+              </div>
+              <div class="transfer-list-item">
+                <span style="font-size: 16px; width: 8px; text-align: center;">📋</span>
+                <div class="transfer-agent-info">
+                  <div class="transfer-agent-name">技术队列</div>
+                  <div class="transfer-agent-detail">等待: 1 · 空闲: 2</div>
+                </div>
+              </div>
+
+              <div class="transfer-external">
+                <span>📞</span>
+                <input type="text" placeholder="输入外部号码...">
+                <button class="btn btn-sm btn-primary">呼叫</button>
+              </div>
+            </div>
+
+            <div class="transfer-note">
+              <label>备注（可选）</label>
+              <textarea placeholder="客户咨询产品A的价格，请销售同事跟进..."></textarea>
+            </div>
+          </div>
+          <div class="transfer-footer">
+            <button class="btn">取消</button>
+            <button class="btn btn-primary">确认转接</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Consult Transfer Dual Call -->
+    <div class="section">
+      <div class="section-title">🔀 咨询转 — 双通话模式</div>
+      <div class="section-desc">咨询转发起后，CallBar 扩展为双通话视图，可切换、合并或取消</div>
+
+      <div class="dual-call-bar">
+        <div class="dual-call-header">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--color-primary);"></span>
+          <span style="font-weight: 500; color: var(--color-primary);">通话中</span>
+          <span style="font-size: 13px; color: var(--color-text-secondary); margin-left: 8px;">咨询转 — 两通电话进行中</span>
+        </div>
+        <div class="dual-call-cards">
+          <div class="dual-call-card held">
+            <div class="dual-call-card-label">通话 A（原始）</div>
+            <div class="dual-call-card-name">王先生</div>
+            <div class="dual-call-card-sub">138-xxxx-xxxx</div>
+            <div class="dual-call-card-timer" style="color: var(--color-text-secondary);">00:03:25</div>
+            <div class="dual-call-card-status" style="color: #d48806;">
+              <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--color-warning);"></span>
+              已保持
+            </div>
+            <div class="dual-call-card-actions">
+              <button class="btn btn-sm">切换</button>
+              <button class="btn btn-sm btn-danger" style="font-size: 12px;">挂断</button>
+            </div>
+          </div>
+          <div class="dual-call-card active">
+            <div class="dual-call-card-label">通话 B（咨询）</div>
+            <div class="dual-call-card-name">李坐席</div>
+            <div class="dual-call-card-sub">1002 · 内部通话</div>
+            <div class="dual-call-card-timer" style="color: var(--color-primary);">00:00:30</div>
+            <div class="dual-call-card-status" style="color: var(--color-primary);">
+              <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--color-primary);"></span>
+              通话中
+            </div>
+            <div class="dual-call-card-actions">
+              <button class="btn btn-sm">切换</button>
+              <button class="btn btn-sm btn-danger" style="font-size: 12px;">挂断</button>
+            </div>
+          </div>
+        </div>
+        <div class="dual-call-bottom">
+          <button class="btn btn-primary" style="border-radius: 18px;">🔄 合并为会议</button>
+          <button class="btn btn-danger" style="border-radius: 18px;">❌ 取消转接</button>
+          <button class="btn" style="border-radius: 18px; margin-left: auto;">🔢 DTMF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DTMF Pad -->
+    <div class="section">
+      <div class="section-title">🔢 DTMF 通话中按键面板</div>
+      <div class="section-desc">通话中点击"DTMF"按钮弹出，按键后立即发送，用于 IVR 导航</div>
+
+      <div style="background: var(--color-bg-layout); border-radius: 12px; padding: 32px; display: flex; justify-content: center;">
+        <div class="dtmf-container">
+          <div class="dtmf-header">发送 DTMF</div>
+          <div class="dtmf-keys">
+            <div class="dtmf-row">
+              <button class="dtmf-key">1</button>
+              <button class="dtmf-key">2</button>
+              <button class="dtmf-key">3</button>
+            </div>
+            <div class="dtmf-row">
+              <button class="dtmf-key">4</button>
+              <button class="dtmf-key">5</button>
+              <button class="dtmf-key">6</button>
+            </div>
+            <div class="dtmf-row">
+              <button class="dtmf-key">7</button>
+              <button class="dtmf-key">8</button>
+              <button class="dtmf-key">9</button>
+            </div>
+            <div class="dtmf-row">
+              <button class="dtmf-key">*</button>
+              <button class="dtmf-key">0</button>
+              <button class="dtmf-key">#</button>
+            </div>
+          </div>
+          <div class="dtmf-sent">
+            已发送:
+            <div class="dtmf-sent-digits">1 - 2 - 3 - #</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

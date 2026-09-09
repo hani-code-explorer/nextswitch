@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "extensions": {
+    "git": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:89711dec9716473fba4afc54f7224bcb28ebd3c55fb5aaa30df854ab02b07a75",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "qodercli": [
+          "speckit.git.feature",
+          "speckit.git.validate",
+          "speckit.git.remote",
+          "speckit.git.initialize",
+          "speckit.git.commit"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-09-09T05:39:41.727727+00:00"
+    },
+    "agent-context": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:9a1dc02d2d0139bb03860392ecacef79183be2c442feda2f9ccaa4e5907b1e47",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "qodercli": [
+          "speckit.agent-context.update"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-09-09T05:39:47.246217+00:00"
+    },
+    "superb": {
+      "version": "1.9.0",
+      "source": "local",
+      "manifest_hash": "sha256:8eeb32744ff32d571e7b6da07acab43207e392d8b62c067344232c288727e2d8",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "qodercli": [
+          "speckit.superb.check",
+          "speckit.superb.brainstorm",
+          "speckit.superb.implementation-gate",
+          "speckit.superb.critique",
+          "speckit.superb.debug",
+          "speckit.superb.respond",
+          "speckit.superb.finish"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-09-09T05:40:03.738444+00:00"
+    }
+  }
+}

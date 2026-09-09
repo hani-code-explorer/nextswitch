@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>会议面板 — Nextswitch</title>
+  <link rel="stylesheet" href="css/design-system.css">
+  <style>
+    .page { max-width: 900px; margin: 0 auto; padding: 24px; }
+
+    .conference-layout {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    /* Conference Panel (right side) */
+    .conference-panel {
+      width: 340px;
+      background: var(--color-bg);
+      border-radius: 12px;
+      border: 1px solid var(--color-border-secondary);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .conference-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--color-border-secondary);
+    }
+    .conference-panel-title {
+      font-size: 15px; font-weight: 600;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .conference-panel-body { padding: 16px 20px; }
+
+    .participant-card {
+      border: 1px solid var(--color-border-secondary);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+      transition: border-color 0.2s;
+    }
+    .participant-card:hover { border-color: var(--color-border); }
+    .participant-card.self { border-color: var(--color-primary-border); background: var(--color-primary-bg); }
+    .participant-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 8px;
+    }
+    .participant-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 500; flex-shrink: 0;
+    }
+    .participant-name { font-size: 14px; font-weight: 500; }
+    .participant-sub { font-size: 12px; color: var(--color-text-tertiary); margin-top: 1px; }
+    .participant-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 8px;
+    }
+    .participant-timer {
+      font-family: 'SF Mono', monospace;
+      font-size: 13px; color: var(--color-text-secondary);
+    }
+    .participant-muted {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 12px; color: var(--color-text-tertiary);
+      background: rgba(0,0,0,0.04); padding: 2px 8px; border-radius: 10px;
+    }
+
+    /* Audio level visualization */
+    .audio-level-viz {
+      display: flex; align-items: flex-end; gap: 2px; height: 18px;
+      margin-top: 8px;
+    }
+    .audio-bar {
+      width: 3px; border-radius: 1px;
+      animation: audioWave var(--duration) ease-in-out infinite;
+      animation-delay: var(--delay);
+    }
+    @keyframes audioWave {
+      0%, 100% { height: 3px; }
+      50% { height: var(--max-h); }
+    }
+    .audio-bar.active { background: var(--color-success); }
+    .audio-bar.muted { background: var(--color-text-quaternary); height: 3px !important; animation: none; }
+
+    .conference-controls {
+      border-top: 1px solid var(--color-border-secondary);
+      padding: 14px 20px;
+    }
+    .conference-control-btn {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 8px 12px;
+      border: none; background: none;
+      border-radius: 6px; cursor: pointer;
+      font-size: 14px; color: var(--color-text);
+      transition: background 0.15s;
+    }
+    .conference-control-btn:hover { background: rgba(0,0,0,0.04); }
+    .conference-control-btn.danger { color: var(--color-error); }
+    .conference-control-btn.danger:hover { background: var(--color-error-bg); }
+
+    /* Main call area */
+    .main-call-area {
+      flex: 1;
+    }
+    .call-info-card {
+      background: var(--color-bg);
+      border-radius: 12px;
+      border: 1px solid var(--color-border-secondary);
+      box-shadow: var(--shadow-sm);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .call-info-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px;
+    }
+    .call-info-status {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 6px;
+      background: var(--color-primary-bg);
+      border: 1px solid var(--color-primary-border);
+      font-size: 13px; font-weight: 500;
+      color: var(--color-primary);
+    }
+    .call-timer-big {
+      font-family: 'SF Mono', monospace;
+      font-size: 32px; font-weight: 500;
+      color: var(--color-primary);
+      text-align: center;
+      margin: 16px 0;
+    }
+    .call-actions {
+      display: flex; gap: 8px; justify-content: center;
+      flex-wrap: wrap;
+    }
+    .call-action-btn {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 12px 16px; border-radius: 12px;
+      border: 1px solid var(--color-border-secondary);
+      background: var(--color-bg); cursor: pointer;
+      transition: all 0.2s; min-width: 80px;
+    }
+    .call-action-btn:hover { border-color: var(--color-primary); background: var(--color-primary-bg); }
+    .call-action-btn .icon { font-size: 20px; }
+    .call-action-btn .label { font-size: 12px; color: var(--color-text-secondary); }
+    .call-action-btn.active { background: var(--color-warning-bg); border-color: var(--color-warning-border); }
+    .call-action-btn.danger { border-color: var(--color-error-border); }
+    .call-action-btn.danger:hover { background: var(--color-error-bg); }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div style="margin-bottom: 16px;">
+      <a href="index.html" style="color: var(--color-primary); text-decoration: none; font-size: 14px;">← 返回原型列表</a>
+    </div>
+
+    <h1 style="font-size: 24px; font-weight: 600; margin-bottom: 4px;">👥 会议面板 ConferencePanel</h1>
+    <p style="color: var(--color-text-secondary); margin-bottom: 24px; font-size: 14px;">多方通话参与者视图，显示音频电平、静音状态、会议控制操作</p>
+
+    <div class="conference-layout">
+      <!-- Main Call Area -->
+      <div class="main-call-area">
+        <div class="call-info-card">
+          <div class="call-info-header">
+            <div class="call-info-status">
+              <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--color-primary);"></span>
+              会议中 (3人)
+            </div>
+            <span style="font-size: 13px; color: var(--color-text-tertiary);">通话 ID: call-20260909-0042</span>
+          </div>
+
+          <div class="call-timer-big">00:05:30</div>
+
+          <div class="call-actions">
+            <div class="call-action-btn">
+              <span class="icon">🔇</span>
+              <span class="label">静音</span>
+            </div>
+            <div class="call-action-btn">
+              <span class="icon">⏸</span>
+              <span class="label">保持</span>
+            </div>
+            <div class="call-action-btn">
+              <span class="icon">📲</span>
+              <span class="label">转接</span>
+            </div>
+            <div class="call-action-btn">
+              <span class="icon">🔢</span>
+              <span class="label">DTMF</span>
+            </div>
+            <div class="call-action-btn">
+              <span class="icon">👤</span>
+              <span class="label">添加</span>
+            </div>
+            <div class="call-action-btn danger">
+              <span class="icon">📴</span>
+              <span class="label">结束会议</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Participants overview (main area) -->
+        <div class="call-info-card">
+          <div style="font-size: 15px; font-weight: 600; margin-bottom: 16px;">参与者</div>
+
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+            <div style="text-align: center; padding: 16px; border-radius: 8px; background: var(--color-bg-layout);">
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 500; margin: 0 auto 8px;">王</div>
+              <div style="font-weight: 500;">王先生</div>
+              <div style="font-size: 12px; color: var(--color-text-tertiary);">外部 · 138-xxxx</div>
+              <div class="audio-level-viz" style="justify-content: center; margin-top: 8px;">
+                <div class="audio-bar active" style="--duration: 0.8s; --delay: 0s; --max-h: 14px;"></div>
+                <div class="audio-bar active" style="--duration: 0.6s; --delay: 0.1s; --max-h: 18px;"></div>
+                <div class="audio-bar active" style="--duration: 0.7s; --delay: 0.2s; --max-h: 12px;"></div>
+                <div class="audio-bar active" style="--duration: 0.9s; --delay: 0.05s; --max-h: 16px;"></div>
+                <div class="audio-bar active" style="--duration: 0.5s; --delay: 0.15s; --max-h: 10px;"></div>
+              </div>
+            </div>
+            <div style="text-align: center; padding: 16px; border-radius: 8px; background: var(--color-primary-bg); border: 1px solid var(--color-primary-border);">
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: #2f54eb; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 500; margin: 0 auto 8px;">张</div>
+              <div style="font-weight: 500;">张坐席 (你)</div>
+              <div style="font-size: 12px; color: var(--color-text-tertiary);">1001 · 坐席</div>
+              <div class="audio-level-viz" style="justify-content: center; margin-top: 8px;">
+                <div class="audio-bar active" style="--duration: 0.7s; --delay: 0s; --max-h: 12px;"></div>
+                <div class="audio-bar active" style="--duration: 0.5s; --delay: 0.1s; --max-h: 16px;"></div>
+                <div class="audio-bar active" style="--duration: 0.8s; --delay: 0.2s; --max-h: 10px;"></div>
+                <div class="audio-bar active" style="--duration: 0.6s; --delay: 0.05s; --max-h: 14px;"></div>
+                <div class="audio-bar active" style="--duration: 0.9s; --delay: 0.15s; --max-h: 8px;"></div>
+              </div>
+            </div>
+            <div style="text-align: center; padding: 16px; border-radius: 8px; background: var(--color-bg-layout);">
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--color-success); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 500; margin: 0 auto 8px;">李</div>
+              <div style="font-weight: 500;">李坐席</div>
+              <div style="font-size: 12px; color: var(--color-text-tertiary);">1002 · 内部</div>
+              <div class="audio-level-viz" style="justify-content: center; margin-top: 8px;">
+                <div class="audio-bar muted"></div>
+                <div class="audio-bar muted"></div>
+                <div class="audio-bar muted"></div>
+                <div class="audio-bar muted"></div>
+                <div class="audio-bar muted"></div>
+              </div>
+              <div style="font-size: 11px; color: var(--color-text-quaternary); margin-top: 4px;">🔇 已静音</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conference Side Panel -->
+      <div class="conference-panel">
+        <div class="conference-panel-header">
+          <div class="conference-panel-title">
+            📋 会议中 <span class="tag tag-processing" style="font-size: 11px; height: 20px;">3人</span>
+          </div>
+          <span style="cursor: pointer; color: var(--color-text-quaternary);">✕</span>
+        </div>
+
+        <div class="conference-panel-body">
+          <!-- Participant 1: External -->
+          <div class="participant-card">
+            <div class="participant-header">
+              <div class="participant-avatar" style="background: var(--color-primary); color: #fff;">王</div>
+              <div>
+                <div class="participant-name">王先生</div>
+                <div class="participant-sub">138-xxxx-xxxx · 外部</div>
+              </div>
+            </div>
+            <div class="participant-meta">
+              <span class="participant-timer">通话 00:05:30</span>
+            </div>
+            <div class="audio-level-viz">
+              <div class="audio-bar active" style="--duration: 0.8s; --delay: 0s; --max-h: 14px;"></div>
+              <div class="audio-bar active" style="--duration: 0.6s; --delay: 0.1s; --max-h: 18px;"></div>
+              <div class="audio-bar active" style="--duration: 0.7s; --delay: 0.2s; --max-h: 12px;"></div>
+              <div class="audio-bar active" style="--duration: 0.9s; --delay: 0.05s; --max-h: 16px;"></div>
+              <div class="audio-bar active" style="--duration: 0.5s; --delay: 0.15s; --max-h: 10px;"></div>
+              <div class="audio-bar active" style="--duration: 0.75s; --delay: 0.08s; --max-h: 14px;"></div>
+              <div class="audio-bar active" style="--duration: 0.65s; --delay: 0.12s; --max-h: 8px;"></div>
+              <div class="audio-bar active" style="--duration: 0.85s; --delay: 0.03s; --max-h: 16px;"></div>
+            </div>
+          </div>
+
+          <!-- Participant 2: Self -->
+          <div class="participant-card self">
+            <div class="participant-header">
+              <div class="participant-avatar" style="background: #2f54eb; color: #fff;">张</div>
+              <div>
+                <div class="participant-name">张坐席 <span class="tag tag-processing" style="font-size: 10px; height: 18px; padding: 0 4px; margin-left: 4px;">你</span></div>
+                <div class="participant-sub">1001 · 坐席</div>
+              </div>
+            </div>
+            <div class="audio-level-viz">
+              <div class="audio-bar active" style="--duration: 0.7s; --delay: 0s; --max-h: 12px;"></div>
+              <div class="audio-bar active" style="--duration: 0.5s; --delay: 0.1s; --max-h: 16px;"></div>
+              <div class="audio-bar active" style="--duration: 0.8s; --delay: 0.2s; --max-h: 10px;"></div>
+              <div class="audio-bar active" style="--duration: 0.6s; --delay: 0.05s; --max-h: 14px;"></div>
+              <div class="audio-bar active" style="--duration: 0.9s; --delay: 0.15s; --max-h: 8px;"></div>
+              <div class="audio-bar active" style="--duration: 0.7s; --delay: 0.08s; --max-h: 12px;"></div>
+              <div class="audio-bar active" style="--duration: 0.55s; --delay: 0.12s; --max-h: 16px;"></div>
+              <div class="audio-bar active" style="--duration: 0.85s; --delay: 0.03s; --max-h: 10px;"></div>
+            </div>
+          </div>
+
+          <!-- Participant 3: Muted -->
+          <div class="participant-card">
+            <div class="participant-header">
+              <div class="participant-avatar" style="background: var(--color-success); color: #fff;">李</div>
+              <div>
+                <div class="participant-name">李坐席</div>
+                <div class="participant-sub">1002 · 内部 · 通话 00:02:10</div>
+              </div>
+              <span class="participant-muted">🔇 静音</span>
+            </div>
+            <div class="audio-level-viz">
+              <div class="audio-bar muted"></div>
+              <div class="audio-bar muted"></div>
+              <div class="audio-bar muted"></div>
+              <div class="audio-bar muted"></div>
+              <div class="audio-bar muted"></div>
+              <div class="audio-bar muted"></div>
+              <div class="audio-bar muted"></div>
+              <div class="audio-bar muted"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="conference-controls">
+          <button class="conference-control-btn">
+            <span>🔇</span> 全体静音
+          </button>
+          <button class="conference-control-btn">
+            <span>🚪</span> 踢出参与者 <span style="color: var(--color-text-quaternary); font-size: 12px;">▾</span>
+          </button>
+          <button class="conference-control-btn danger">
+            <span>📴</span> 结束会议
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

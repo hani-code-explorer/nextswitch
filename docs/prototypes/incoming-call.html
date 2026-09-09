@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>来电弹屏 + 拨号盘 — Nextswitch</title>
+  <link rel="stylesheet" href="css/design-system.css">
+  <style>
+    .page-container {
+      display: flex;
+      gap: 32px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      align-items: flex-start;
+    }
+    .proto-half {
+      flex: 1;
+    }
+    .proto-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .proto-desc {
+      font-size: 13px;
+      color: var(--color-text-tertiary);
+      margin-bottom: 16px;
+    }
+    /* Incoming call modal */
+    .incoming-modal {
+      background: var(--color-bg);
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+      overflow: hidden;
+      animation: slideUp 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+    }
+    .incoming-modal-header {
+      text-align: center;
+      padding: 24px 24px 0;
+      background: linear-gradient(180deg, var(--color-primary-bg) 0%, var(--color-bg) 100%);
+    }
+    .incoming-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 600;
+      margin: 0 auto 12px;
+      animation: ringPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes ringPulse {
+      0% { box-shadow: 0 0 0 0 rgba(22, 119, 255, 0.4); }
+      70% { box-shadow: 0 0 0 16px rgba(22, 119, 255, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(22, 119, 255, 0); }
+    }
+    .incoming-name {
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .incoming-phone {
+      font-size: 15px;
+      color: var(--color-text-secondary);
+      font-family: 'SF Mono', monospace;
+      margin-top: 4px;
+    }
+    .incoming-info {
+      margin: 16px 24px;
+      padding: 12px;
+      background: var(--color-bg-layout);
+      border-radius: 8px;
+    }
+    .incoming-info-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      margin-bottom: 4px;
+    }
+    .incoming-info-row:last-child { margin-bottom: 0; }
+    .incoming-actions {
+      display: flex;
+      gap: 12px;
+      padding: 16px 24px;
+    }
+    .incoming-btn {
+      flex: 1;
+      height: 48px;
+      border-radius: 24px;
+      border: none;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .incoming-btn-answer {
+      background: var(--color-success);
+      color: #fff;
+    }
+    .incoming-btn-answer:hover { background: var(--color-success-hover); }
+    .incoming-btn-reject {
+      background: var(--color-error);
+      color: #fff;
+    }
+    .incoming-btn-reject:hover { background: var(--color-error-hover); }
+    .incoming-transfer {
+      text-align: center;
+      padding: 0 24px 16px;
+    }
+    .incoming-transfer-btn {
+      background: none;
+      border: none;
+      color: var(--color-primary);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 4px 12px;
+      border-radius: 4px;
+    }
+    .incoming-transfer-btn:hover { background: var(--color-primary-bg); }
+
+    /* Dialpad */
+    .dialpad-container {
+      background: var(--color-bg);
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 320px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+    .dialpad-display {
+      padding: 20px 24px 12px;
+      text-align: center;
+    }
+    .dialpad-number {
+      font-size: 24px;
+      font-weight: 500;
+      font-family: 'SF Mono', monospace;
+      letter-spacing: 1px;
+      min-height: 36px;
+      color: var(--color-text);
+    }
+    .dialpad-number-placeholder {
+      color: var(--color-text-quaternary);
+      font-weight: 400;
+    }
+    .dialpad-clear {
+      position: absolute;
+      right: 24px;
+      top: 20px;
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: none;
+      color: var(--color-text-quaternary);
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 4px;
+    }
+    .dialpad-clear:hover { background: rgba(0,0,0,0.04); color: var(--color-text); }
+    .dialpad-keys {
+      padding: 8px 24px 16px;
+    }
+    .dialpad-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .dial-key {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 56px;
+      border-radius: 12px;
+      border: none;
+      background: #f5f5f5;
+      cursor: pointer;
+      transition: all 0.1s;
+      user-select: none;
+    }
+    .dial-key:hover { background: #ebebeb; }
+    .dial-key:active { background: #e0e0e0; transform: scale(0.95); }
+    .dial-key-digit {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--color-text);
+      line-height: 1;
+    }
+    .dial-key-letters {
+      font-size: 9px;
+      color: var(--color-text-tertiary);
+      letter-spacing: 2px;
+      margin-top: 2px;
+      text-transform: uppercase;
+    }
+    .dialpad-call {
+      padding: 8px 24px 16px;
+      text-align: center;
+    }
+    .dialpad-call-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: none;
+      background: var(--color-success);
+      color: #fff;
+      font-size: 24px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .dialpad-call-btn:hover { background: var(--color-success-hover); transform: scale(1.05); }
+    .dialpad-recent {
+      border-top: 1px solid var(--color-border-secondary);
+      padding: 12px 24px 16px;
+    }
+    .dialpad-recent-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--color-text-tertiary);
+      margin-bottom: 8px;
+    }
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .recent-item:hover { background: rgba(0,0,0,0.02); }
+    .recent-icon {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+    .recent-icon.inbound { color: var(--color-success); }
+    .recent-icon.outbound { color: var(--color-primary); }
+    .recent-number {
+      flex: 1;
+      font-size: 13px;
+      font-family: 'SF Mono', monospace;
+    }
+    .recent-time {
+      font-size: 12px;
+      color: var(--color-text-tertiary);
+    }
+    .recent-duration {
+      font-size: 12px;
+      color: var(--color-text-quaternary);
+    }
+  </style>
+</head>
+<body>
+  <div style="max-width: 1200px; margin: 0 auto; padding: 24px;">
+    <a href="index.html" style="color: var(--color-primary); text-decoration: none; font-size: 14px;">← 返回原型列表</a>
+  </div>
+
+  <div class="page-container">
+    <!-- Incoming Call Modal -->
+    <div class="proto-half">
+      <div class="proto-title">📲 来电弹屏 IncomingCallModal</div>
+      <div class="proto-desc">来电时屏幕中央弹出，显示来电者信息、客户资料、操作按钮</div>
+
+      <div style="background: var(--color-bg-layout); border-radius: 12px; padding: 32px; display: flex; align-items: center; justify-content: center; min-height: 580px;">
+        <div class="incoming-modal">
+          <div class="incoming-modal-header">
+            <div style="font-size: 13px; color: var(--color-primary); margin-bottom: 16px; font-weight: 500;">📞 来电</div>
+            <div class="incoming-avatar">王</div>
+            <div class="incoming-name">王先生</div>
+            <div class="incoming-phone">138-1234-5678</div>
+          </div>
+
+          <div class="incoming-info">
+            <div class="incoming-info-row">
+              <span class="tag tag-warning" style="font-size: 11px; height: 20px; padding: 0 6px;">VIP 客户</span>
+              <span>第 3 次来电</span>
+            </div>
+            <div class="incoming-info-row">
+              <span style="color: var(--color-text-tertiary);">上次通话:</span>
+              <span>2026-09-08 14:30</span>
+            </div>
+            <div class="incoming-info-row">
+              <span style="color: var(--color-text-tertiary);">上次处理:</span>
+              <span>产品咨询 — 已解决</span>
+            </div>
+          </div>
+
+          <div class="incoming-actions">
+            <button class="incoming-btn incoming-btn-answer">📞 接听</button>
+            <button class="incoming-btn incoming-btn-reject">📴 挂断</button>
+          </div>
+
+          <div class="incoming-transfer">
+            <button class="incoming-transfer-btn">转... → 转接到其他坐席/队列</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DialPad -->
+    <div class="proto-half">
+      <div class="proto-title">🔢 拨号盘 DialPad</div>
+      <div class="proto-desc">从 CallBar 弹出的浮层，支持数字输入、通讯录匹配、最近拨打</div>
+
+      <div style="background: var(--color-bg-layout); border-radius: 12px; padding: 32px; display: flex; align-items: center; justify-content: center; min-height: 580px;">
+        <div class="dialpad-container">
+          <div class="dialpad-display" style="position: relative;">
+            <div class="dialpad-number">13812345678</div>
+            <button class="dialpad-clear">✕</button>
+          </div>
+
+          <div class="dialpad-keys">
+            <div class="dialpad-row">
+              <button class="dial-key">
+                <span class="dial-key-digit">1</span>
+                <span class="dial-key-letters"></span>
+              </button>
+              <button class="dial-key">
+                <span class="dial-key-digit">2</span>
+                <span class="dial-key-letters">ABC</span>
+              </button>
+              <button class="dial-key">
+                <span class="dial-key-digit">3</span>
+                <span class="dial-key-letters">DEF</span>
+              </button>
+            </div>
+            <div class="dialpad-row">
+              <button class="dial-key">
+                <span class="dial-key-digit">4</span>
+                <span class="dial-key-letters">GHI</span>
+              </button>
+              <button class="dial-key">
+                <span class="dial-key-digit">5</span>
+                <span class="dial-key-letters">JKL</span>
+              </button>
+              <button class="dial-key">
+                <span class="dial-key-digit">6</span>
+                <span class="dial-key-letters">MNO</span>
+              </button>
+            </div>
+            <div class="dialpad-row">
+              <button class="dial-key">
+                <span class="dial-key-digit">7</span>
+                <span class="dial-key-letters">PQRS</span>
+              </button>
+              <button class="dial-key">
+                <span class="dial-key-digit">8</span>
+                <span class="dial-key-letters">TUV</span>
+              </button>
+              <button class="dial-key">
+                <span class="dial-key-digit">9</span>
+                <span class="dial-key-letters">WXYZ</span>
+              </button>
+            </div>
+            <div class="dialpad-row">
+              <button class="dial-key">
+                <span class="dial-key-digit">*</span>
+              </button>
+              <button class="dial-key">
+                <span class="dial-key-digit">0</span>
+                <span class="dial-key-letters">+</span>
+              </button>
+              <button class="dial-key">
+                <span class="dial-key-digit">#</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="dialpad-call">
+            <button class="dialpad-call-btn">📞</button>
+          </div>
+
+          <div class="dialpad-recent">
+            <div class="dialpad-recent-title">最近拨打</div>
+            <div class="recent-item">
+              <div class="recent-icon outbound">📤</div>
+              <div class="recent-number">138-xxxx-xxxx</div>
+              <div class="recent-time">10:23</div>
+              <div class="recent-duration">2m</div>
+            </div>
+            <div class="recent-item">
+              <div class="recent-icon inbound">📥</div>
+              <div class="recent-number">1002 (李坐席)</div>
+              <div class="recent-time">09:45</div>
+              <div class="recent-duration">5m</div>
+            </div>
+            <div class="recent-item">
+              <div class="recent-icon outbound">📤</div>
+              <div class="recent-number">400-xxxx-xxxx</div>
+              <div class="recent-time">昨天</div>
+              <div class="recent-duration">1m</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
