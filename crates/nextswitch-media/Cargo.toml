@@ -1,0 +1,9 @@
+[package]
+name = "nextswitch-media"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nextswitch-core = { path = "../nextswitch-core" }
+tokio.workspace = true
+tracing.workspace = true
