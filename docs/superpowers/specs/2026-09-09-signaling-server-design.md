@@ -15,7 +15,7 @@ NextSWITCH 是新一代 VoIP 软交换平台，面向呼叫中心场景，支持
 
 本规格覆盖两个核心信令组件：
 - **sipserver**：SIP 代理服务器，处理 SIP 协议信令
-- **signalserver**：WebSocket 信令服务器，处理 WebRTC 客户端私有协议接入
+- **sigserver**：WebSocket 信令服务器，处理 WebRTC 客户端私有协议接入
 
 ### 1.1 设计目标
 
@@ -37,7 +37,7 @@ WebRTC 客户端                SIP 话机
       │  WS 私有协议            │  SIP
       ▼                        ▼
 ┌──────────┐            ┌──────────┐
-│ signalserver│            │ sipserver│
+│ sigserver│            │ sipserver│
 └────┬─────┘            └────┬─────┘
      │                       │
      └───────────┬───────────┘
@@ -63,7 +63,7 @@ WebRTC 客户端                SIP 话机
 
 **方案 A：单进程多线程 + Redis（已选定）**
 
-每个 sipserver/signalserver 实例是一个 Tokio 多线程进程，所有实例共享 Redis 集群用于注册表和呼叫状态。
+每个 sipserver/sigserver 实例是一个 Tokio 多线程进程，所有实例共享 Redis 集群用于注册表和呼叫状态。
 
 理由：
 - 简单可靠，Redis 注册表是业界验证方案
@@ -247,7 +247,7 @@ trait MediaServer {
 
 ---
 
-## 3. signalserver 设计
+## 3. sigserver 设计
 
 ### 3.1 模块划分
 
@@ -305,12 +305,12 @@ WebSocket 消息入站
 ### 3.3 与 sipserver 协作
 
 **WebRTC 客户端 (1001) 呼叫 SIP 话机 (1002)**：
-1. 1001 通过 WS 发送 invite → signalserver
-2. signalserver 查询 Redis 注册表，发现 1002 注册在 sipserver-02
-3. signalserver 通过 Redis Pub/Sub（`call:command:{sipserver-02}`）通知 sipserver-02
+1. 1001 通过 WS 发送 invite → sigserver
+2. sigserver 查询 Redis 注册表，发现 1002 注册在 sipserver-02
+3. sigserver 通过 Redis Pub/Sub（`call:command:{sipserver-02}`）通知 sipserver-02
 4. sipserver-02 向 1002 发起 SIP INVITE
-5. 1002 应答 → sipserver-02 通过 Redis Pub/Sub（`call:event:{signalserver-id}`）通知 signalserver
-6. signalserver 向 1001 推送 call_progress (answered) + SDP answer
+5. 1002 应答 → sipserver-02 通过 Redis Pub/Sub（`call:event:{sigserver-id}`）通知 sigserver
+6. sigserver 向 1001 推送 call_progress (answered) + SDP answer
 7. 媒体流：1001 ↔ medserver（WebRTC） ↔ medserver（RTP） ↔ 1002
 
 ---
@@ -338,11 +338,11 @@ WebSocket 消息入站
 
 ### 4.2 端点注册
 
-**端点**：`wss://<signalserver-host>:8443/ws`
+**端点**：`wss://<sigserver-host>:5443/ws`
 
 **认证**：URL 参数传递 JWT Token
 ```
-wss://signalserver.example.com/ws?token=<jwt_token>
+wss://sigserver.example.com/ws?token=<jwt_token>
 ```
 
 此认证模式适用于信令 WebSocket（SIP 端机注册场景），在连接建立时即完成认证。
@@ -632,7 +632,7 @@ sipserver (B2BUA)                    medserver
   │     └─ skill_based → 按技能匹配度 + 熟练度排序
   │
   ├─ ④ 坐席振铃
-  │     ├─ 通过 Redis Pub/Sub 通知 signalserver/sipserver
+  │     ├─ 通过 Redis Pub/Sub 通知 sigserver/sipserver
   │     ├─ 坐席在 call_timeout 内应答 → 通话建立
   │     └─ 超时 → 尝试下一个坐席
   │
@@ -724,7 +724,7 @@ sipserver                              cti-server
 #### 5.2.3 WebRTC ↔ SIP
 
 ```
-WebRTC 1001                      signalserver           sipserver             SIP 1002
+WebRTC 1001                      sigserver           sipserver             SIP 1002
     │                                  │                    │                    │
     │  invite { callee: "1002" }       │                    │                    │
     │ ────────────────────────────────►│                    │                    │
@@ -748,7 +748,7 @@ WebRTC 1001                      signalserver           sipserver             SI
 #### 5.2.4 WebRTC ↔ WebRTC
 
 ```
-WebRTC 1001                      signalserver           signalserver           WebRTC 1002
+WebRTC 1001                      sigserver           sigserver           WebRTC 1002
     │                                  │                    │                    │
     │  invite { callee: "1002" }       │                    │                    │
     │ ────────────────────────────────►│                    │                    │
@@ -772,7 +772,7 @@ WebRTC 1001                      signalserver           signalserver           W
     │  ◄══ WebRTC ══► medserver-01 ◄══ WebRTC ══► medserver-02 ◄══ WebRTC ══► 1002
 ```
 
-> 两端均为 WebRTC 时，通过各自 signalserver 的 medserver 桥接。如果两端在同一 signalserver 实例，可优化为单 medserver 桥接。
+> 两端均为 WebRTC 时，通过各自 sigserver 的 medserver 桥接。如果两端在同一 sigserver 实例，可优化为单 medserver 桥接。
 
 #### 5.2.5 呼叫特性
 
@@ -1887,12 +1887,12 @@ impl SdpSecurityProcessor {
 
 | 通信 | 方式 | 说明 |
 |------|------|------|
-| config → sipserver/signalserver | Redis Pub/Sub | 配置增量下发（频道：`config:{tenant_id}:{entity_type}`） |
-| sipserver ↔ signalserver | Redis Pub/Sub | 跨协议呼叫协调（频道：`call:command:{instance_id}` / `call:event:{instance_id}`） |
+| config → sipserver/sigserver | Redis Pub/Sub | 配置增量下发（频道：`config:{tenant_id}:{entity_type}`） |
+| sipserver ↔ sigserver | Redis Pub/Sub | 跨协议呼叫协调（频道：`call:command:{instance_id}` / `call:event:{instance_id}`） |
 | sipserver ↔ router-server | gRPC | 复杂路由决策（呼叫流程、IVR、ACD 排队） |
 | sipserver ↔ medserver | gRPC | 媒体会话控制 |
-| signalserver ↔ cti-server | Redis Pub/Sub | 坐席状态同步、呼叫事件（频道：`call:command:{instance_id}` / `call:event:{instance_id}`） |
-| signalserver ↔ medserver | gRPC | 媒体会话控制 |
+| sigserver ↔ cti-server | Redis Pub/Sub | 坐席状态同步、呼叫事件（频道：`call:command:{instance_id}` / `call:event:{instance_id}`） |
+| sigserver ↔ medserver | gRPC | 媒体会话控制 |
 | im-server → cti-server | gRPC | ACD 排队、坐席容量管理 |
 | im-server ↔ cti-server | Redis Pub/Sub | 会话事件同步 |
 | 所有 → Redis | redis-rs | 注册表读写 |
@@ -1922,7 +1922,7 @@ config (Pub/Sub): 自动重连，本地缓存兜底
 
 **启动**：
 1. 连接 Redis，注册 heartbeat（TTL 30s）
-   - Key 格式：`heartbeat:sipserver:{instance_id}` 或 `heartbeat:signalserver:{instance_id}`
+   - Key 格式：`heartbeat:sipserver:{instance_id}` 或 `heartbeat:sigserver:{instance_id}`
 2. 从 config 服务拉取全量配置
 3. 订阅 Redis Pub/Sub 频道（`call:command:{instance_id}` 等）
 4. 启动 SIP/WS 监听
@@ -2041,7 +2041,7 @@ CREATE INDEX idx_cdrs_agent ON cdrs(tenant_id, caller_agent_id);
 CREATE INDEX idx_cdrs_sync ON cdrs(site_id, instance_id, id);
 ```
 
-> **注意**：`cdrs` 表由 sipserver 和 signalserver 共同写入，通过 WAL 缓冲异步同步。
+> **注意**：`cdrs` 表由 sipserver 和 sigserver 共同写入，通过 WAL 缓冲异步同步。
 > 表所有权归信令层，不属于 Config Service 或 Auth Service。
 
 ### 10.2 WAL Buffer 写入流水线
@@ -2118,7 +2118,7 @@ router-server：超时 1000ms，重试 1 次，降级到本地路由
 | `sip_proxy_duration_seconds` | Histogram | `method` | 代理处理延迟分布 |
 | `sip_b2bua_downgrade_total` | Counter | `reason`（record/conference/ivr/transcode） | B2BUA 降级次数 |
 
-**WebSocket 信令指标**（signalserver）：
+**WebSocket 信令指标**（sigserver）：
 
 | 指标名 | 类型 | 标签 | 说明 |
 |--------|------|------|------|
@@ -2223,7 +2223,7 @@ INVITE 入站
 
 **关联规则**：
 - 所有与同一呼叫相关的日志必须携带相同 `call_id`
-- `trace_id` 用于跨服务关联（sipserver ↔ signalserver ↔ medserver ↔ router-server）
+- `trace_id` 用于跨服务关联（sipserver ↔ sigserver ↔ medserver ↔ router-server）
 - 生产环境默认 INFO 级别，可按 `call_id` 动态调整到 DEBUG
 
 ### 12.5 健康检查
@@ -2349,7 +2349,7 @@ Web UI (前端)
     ▼
 nextswitch-api
     │
-    ├── 实时数据 → 直连 sipserver/signalserver /health 端点
+    ├── 实时数据 → 直连 sipserver/sigserver /health 端点
     │
     └── 历史数据 → Prometheus HTTP API (query_range)
 ```
@@ -2428,7 +2428,7 @@ nextswitch-api
 | 实时推送 | WebSocket 长连接 | 5s 推送间隔 |
 | 媒体服务器 | nextswitch-api 代理 medserver 端点 | <1s |
 
-> **告警端点所有权**：每个服务（sipserver、signalserver、medserver 等）维护自己的 `/alerts` 端点，暴露本服务的活跃告警。nextswitch-api 通过聚合各实例的 `/alerts` 端点，提供统一的 `/api/v1/monitoring/alerts` 接口。
+> **告警端点所有权**：每个服务（sipserver、sigserver、medserver 等）维护自己的 `/alerts` 端点，暴露本服务的活跃告警。nextswitch-api 通过聚合各实例的 `/alerts` 端点，提供统一的 `/api/v1/monitoring/alerts` 接口。
 
 **认证与授权**：
 - 复用 nextswitch-api 现有 JWT 认证
@@ -2454,15 +2454,15 @@ scrape_configs:
         labels:
           service: 'sipserver'
 
-  - job_name: 'nextswitch-signalserver'
+  - job_name: 'nextswitch-sigserver'
     scrape_interval: 15s
     metrics_path: '/metrics'
     static_configs:
       - targets:
-        - 'signalserver-01.internal:9091'
-        - 'signalserver-02.internal:9091'
+        - 'sigserver-01.internal:5080'
+        - 'sigserver-02.internal:5080'
         labels:
-          service: 'signalserver'
+          service: 'sigserver'
 
   # K8s 环境使用服务发现
   - job_name: 'nextswitch-k8s'
@@ -2594,8 +2594,8 @@ receivers:
 |------|------|------|------|
 | sipserver | 9090 | `/metrics` | Prometheus 指标 |
 | sipserver | 9090 | `/health/*` | 健康检查 |
-| signalserver | 9091 | `/metrics` | Prometheus 指标 |
-| signalserver | 9091 | `/health/*` | 健康检查 |
+| sigserver | 5080 | `/metrics` | Prometheus 指标 |
+| sigserver | 5080 | `/health/*` | 健康检查 |
 
 **安全要求**：
 - `/metrics` 和 `/health` 端点仅监听内网地址
@@ -2649,7 +2649,7 @@ receivers:
 |---|------|--------|
 | 9 | SIP→SIP 同实例直拨 | P2P 媒体建立，信令正确 |
 | 10 | SIP→SIP 跨实例直拨 | 通过 Redis Pub/Sub 协调，媒体通过 medserver |
-| 11 | WebRTC→SIP 呼叫 | signalserver 与 sipserver 协作，媒体桥接正确 |
+| 11 | WebRTC→SIP 呼叫 | sigserver 与 sipserver 协作，媒体桥接正确 |
 | 12 | 呼叫等待 | 第二路来电提示音正确，hold/switch 正常 |
 | 13 | 盲转 | REFER 处理正确，主叫与被转接方通话建立 |
 | 14 | 协商转 | 两路呼叫正确合并，原被转接方退出 |
@@ -2760,7 +2760,7 @@ receivers:
 
 | 版本 | 日期 | 变更说明 |
 |------|------|---------|
-| 1.0.0 | 2026-09-09 | 初始版本：sipserver/signalserver 核心架构、注册管理、代理逻辑、集群高可用、CDR、监控 |
+| 1.0.0 | 2026-09-09 | 初始版本：sipserver/sigserver 核心架构、注册管理、代理逻辑、集群高可用、CDR、监控 |
 | 1.1.0 | 2026-09-09 | 补充健康检查、前端监控 API、Prometheus 集成、告警规则、仪表板设计 |
 | 1.0.0 (supplement) | 2026-09-09 | 呼叫流程补充：入站/出站呼叫流程、内部分机呼叫特性、SIP 安全访问 |
 | **2.0.0** | **2026-09-09** | **合并版本**：将呼叫流程与安全补充文档合并为主文档。关键变更：<br>- 明确路由职责分层：sipserver 本地快速路径 + router-server 复杂路由（gRPC）<br>- 移除 NATS 引用，统一使用 Redis Pub/Sub<br>- 标准化 heartbeat key 格式为 `heartbeat:{service}:{instance_id}`<br>- 标准化 Pub/Sub 频道为 `call:command:{instance_id}` / `call:event:{instance_id}`<br>- 添加 WebSocket 认证跨引用（CTI/IM post-connect auth）<br>- 修正通信矩阵：增加 router-server gRPC 通信<br>- 添加媒体服务器监控代理端点<br>- 统一错误处理增加 router-server 降级策略 |

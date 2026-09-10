@@ -66,7 +66,7 @@
               │         应用服务层                 │
               │                                  │
               │  ┌─────────┐  ┌──────────────┐  │
-              │  │sipserver │  │signalserver  │  │
+              │  │sipserver │  │sigserver  │  │
               │  │(SIP信令) │  │(信号处理)     │  │
               │  └────┬─────┘  └──────┬───────┘  │
               │       │   gRPC mTLS    │          │
@@ -1115,7 +1115,7 @@ NextSWITCH 内部服务间通信在无 Service Mesh 环境下运行。部署环�
 每个服务实例拥有全局唯一的 `service_id`，格式为 `{service_type}-{instance_name}`：
 
 ```
-sipserver-01, signalserver-01, medserver-01, medserver-02,
+sipserver-01, sigserver-01, medserver-01, medserver-02,
 router-server-01, nextswitch-api, config-service, cti-server-01, im-server-01
 ```
 
@@ -1130,7 +1130,7 @@ service_id = "sipserver-01"
 secret = "env:SIPSERVER_01_SECRET"
 
 [service_identity.trusted_peers]
-signalserver-01 = "env:SIGNALSERVER_01_SECRET"
+sigserver-01 = "env:SIGSERVER_01_SECRET"
 medserver-01 = "env:MEDSERVER_01_SECRET"
 ```
 
@@ -1300,16 +1300,16 @@ thiserror = "1"
 
 | 服务 | 自己的 service_id | 需要信任的对端 |
 |------|-------------------|---------------|
-| nextswitch-api | `nextswitch-api` | sipserver-*, signalserver-* |
-| sipserver | `sipserver-{N}` | signalserver-*, medserver-*, cti-server-*, router-server-* |
-| signalserver | `signalserver-{N}` | sipserver-*, medserver-*, cti-server-*, router-server-* |
-| medserver | `medserver-{N}` | sipserver-*, signalserver-* |
-| cti-server | `cti-server-{N}` | sipserver-*, signalserver-*, im-server-* |
+| nextswitch-api | `nextswitch-api` | sipserver-*, sigserver-* |
+| sipserver | `sipserver-{N}` | sigserver-*, medserver-*, cti-server-*, router-server-* |
+| sigserver | `sigserver-{N}` | sipserver-*, medserver-*, cti-server-*, router-server-* |
+| medserver | `medserver-{N}` | sipserver-*, sigserver-* |
+| cti-server | `cti-server-{N}` | sipserver-*, sigserver-*, im-server-* |
 | im-server | `im-server-{N}` | cti-server-*, nextswitch-api |
-| router-server | `router-server-{N}` | sipserver-*, signalserver-* |
+| router-server | `router-server-{N}` | sipserver-*, sigserver-* |
 | config-service | `config-service` | （仅发布，不需信任对端） |
 
-> **router-server** 与 sipserver/signalserver 之间有信令路由通信，需加入信任矩阵。
+> **router-server** 与 sipserver/sigserver 之间有信令路由通信，需加入信任矩阵。
 
 ### 3.6 配置格式与密钥管理
 
@@ -1322,7 +1322,7 @@ enforce_signing = false
 clock_skew_seconds = 30
 
 [service_identity.trusted_peers]
-signalserver-01 = "env:PEER_SIGNALSERVER_01_SECRET"
+sigserver-01 = "env:PEER_SIGSERVER_01_SECRET"
 medserver-01 = "env:PEER_MEDSERVER_01_SECRET"
 ```
 
@@ -1330,7 +1330,7 @@ medserver-01 = "env:PEER_MEDSERVER_01_SECRET"
 
 ```bash
 nextswitch-keygen generate
-nextswitch-keygen matrix --services sipserver-01,signalserver-01,medserver-01
+nextswitch-keygen matrix --services sipserver-01,sigserver-01,medserver-01
 ```
 
 #### 3.6.3 密钥轮换
@@ -1338,7 +1338,7 @@ nextswitch-keygen matrix --services sipserver-01,signalserver-01,medserver-01
 过渡期支持双密钥：
 
 ```toml
-[service_identity.trusted_peers.signalserver-01]
+[service_identity.trusted_peers.sigserver-01]
 secret = "env:NEW_SECRET"
 old_secret = "env:OLD_SECRET"
 ```
@@ -1374,10 +1374,10 @@ service_auth_latency_seconds{protocol}
 
 | 频道模式 | 发布者 | 订阅者 | 签名 |
 |---------|--------|--------|------|
-| `config:{tenant_id}:{entity_type}` | nextswitch-api | sipserver, signalserver, medserver, im-server, cti-server | 有 |
+| `config:{tenant_id}:{entity_type}` | nextswitch-api | sipserver, sigserver, medserver, im-server, cti-server | 有 |
 | `config:broadcast` | nextswitch-api | 所有服务实例 | 有 |
 | `cluster:events` | 所有服务 | 所有服务 | 有 |
-| `call:relay:{instance_id}` | signalserver | sipserver | 有 |
+| `call:relay:{instance_id}` | sigserver | sipserver | 有 |
 
 ---
 
@@ -2037,7 +2037,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 1800;  -- 30 分钟延迟
 
 | 源 | 目标 | 端口 | 说明 |
 |----|------|------|------|
-| 互联网 | DMZ | 443, 5060-5061, 8443, 10000-60000/UDP | SIP + HTTPS + RTP |
+| 互联网 | DMZ | 443, 5060-5061, 5443, 10000-60000/UDP | SIP + HTTPS + RTP |
 | DMZ | 应用区 | 8080 | API 请求 |
 | 应用区 | 数据区 | 3306, 6379 | MySQL + Redis（TLS） |
 | 应用区 | 应用区 | 50051 | gRPC（mTLS） |

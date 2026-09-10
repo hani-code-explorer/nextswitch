@@ -32,7 +32,7 @@ Routing Engine（路由引擎）是 NextSWITCH 的统一路由决策服务，独
 
 ### 1.4 Non-Goals
 
-- 不实现 SIP 信令处理（由 sipserver/signalserver 负责）
+- 不实现 SIP 信令处理（由 sipserver/sigserver 负责）
 - 不实现坐席选择/ACD 分配（由 CTI Service 负责）
 - 不实现媒体处理（由 medserver 负责）
 - 不实现配置 CRUD（由 config-service 负责）
@@ -54,7 +54,7 @@ Routing Engine（路由引擎）是 NextSWITCH 的统一路由决策服务，独
           ▼                 ▼                 ▼
 ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
 │  sipserver / │  │  IM Service  │  │  CTI Service │
-│ signalserver │  │              │  │  (Callback)  │
+│ sigserver │  │              │  │  (Callback)  │
 │              │  │              │  │              │
 │ gRPC Client  │  │ gRPC Client  │  │ gRPC Client  │
 └──────┬───────┘  └──────┬───────┘  └──────┬───────┘
@@ -93,7 +93,7 @@ Routing Engine（路由引擎）是 NextSWITCH 的统一路由决策服务，独
 
 | 服务 | 职责 | 与路由引擎的交互 |
 |------|------|----------------|
-| **sipserver / signalserver** | SIP 信令处理、注册管理 | 收到 INVITE 后调用 `RouteInteraction()` 获取路由目标 |
+| **sipserver / sigserver** | SIP 信令处理、注册管理 | 收到 INVITE 后调用 `RouteInteraction()` 获取路由目标 |
 | **config-service** | 配置 CRUD、版本控制 | 路由引擎启动时通过 gRPC 加载配置，运行时通过 Redis Pub/Sub 接收变更通知 |
 | **cti-server** | 坐席管理、ACD 分配、呼叫控制 | 接收路由引擎的入队请求，执行坐席选择策略 |
 | **medserver** | 媒体处理（播放、收号、录音） | 接收路由引擎图引擎的播放/收号指令 |

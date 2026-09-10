@@ -664,7 +664,7 @@ CREATE TABLE operation_logs (
 
     -- 操作主体
     user_id BIGINT,                              -- 操作人 ID（系统操作为 NULL）
-    service_name VARCHAR(100) NOT NULL,           -- 来源服务（sipserver / signalserver / nextswitch-api / config-service / auth-service / media-server）
+    service_name VARCHAR(100) NOT NULL,           -- 来源服务（sipserver / sigserver / nextswitch-api / config-service / auth-service / media-server）
     module VARCHAR(100) NOT NULL,                 -- 业务模块（call / agent / queue / trunk / system / import_export / security）
 
     -- 操作详情
@@ -1523,7 +1523,7 @@ POST /system/security-defaults/apply-all
               ┌────────┘    │    └────────┐
               ▼             ▼             ▼
         ┌──────────┐  ┌──────────┐  ┌──────────┐
-        │ sipserver │  │ medserver │  │signalserver│
+        │ sipserver │  │ medserver │  │sigserver│
         │ PubSub::  │  │ PubSub::  │  │ PubSub::  │
         │ subscribe │  │ subscribe │  │ subscribe │
         │ (本地缓存) │  │ (本地缓存) │  │ (本地缓存) │
@@ -1995,7 +1995,7 @@ Content-Type: multipart/form-data
 配置数据是逻辑概念，与物理站点无关。多站点部署时：
 
 - **Config Service** 单实例部署（或主从复制），所有站点共享同一配置数据库。
-- **各站点实例**（sipserver、signalserver、medserver）通过 `tenant_id` 订阅自身所需配置。
+- **各站点实例**（sipserver、sigserver、medserver）通过 `tenant_id` 订阅自身所需配置。
 - 站点信息（`sites` 表）由 Config Service 管理，但运行时路由决策由信令层基于注册表中的 `site_id` 字段完成。
 
 ---
@@ -2247,11 +2247,11 @@ GET  /health/startup               # K8s 启动探针
 | 方法 | 路径 | 数据来源 | 说明 |
 |------|------|---------|------|
 | GET | `/api/v1/monitoring/overview` | 各实例 `/health` 聚合 | 集群概览 |
-| GET | `/api/v1/monitoring/calls` | sipserver + signalserver | 呼叫统计 |
+| GET | `/api/v1/monitoring/calls` | sipserver + sigserver | 呼叫统计 |
 | GET | `/api/v1/monitoring/instances` | Redis heartbeat keys | 实例列表 |
 | GET | `/api/v1/monitoring/instances/{id}/detail` | 目标实例 `/health` | 实例详情 |
 | GET | `/api/v1/monitoring/infrastructure` | 各实例聚合 | 基础设施状态 |
-| GET | `/api/v1/monitoring/cdr` | sipserver + signalserver | CDR 统计 |
+| GET | `/api/v1/monitoring/cdr` | sipserver + sigserver | CDR 统计 |
 | GET | `/api/v1/monitoring/alerts` | Alertmanager API 代理 | 活跃告警 |
 | GET | `/api/v1/monitoring/metrics/query` | Prometheus API 代理 | Prometheus 查询 |
 | GET | `/api/v1/monitoring/dashboard` | medserver | 媒体服务 Dashboard |
@@ -2369,7 +2369,7 @@ allow_credentials = true
 │ api          │                     ├──────────────┤
 │              │     GET /health     │ sipserver-02 │
 │  Monitor     │ ──────────────────→ ├──────────────┤
-│  Aggregator  │                     │ signalserver │
+│  Aggregator  │                     │ sigserver │
 │              │     GET /health     ├──────────────┤
 │              │ ──────────────────→ │ medserver-01 │
 │              │                     ├──────────────┤
@@ -2426,7 +2426,7 @@ allow_credentials = true
 
 ### 13.3 连接管理
 
-- 认证：URL 参数传递 JWT Token（与 signalserver 一致）。
+- 认证：URL 参数传递 JWT Token（与 sigserver 一致）。
 - 心跳：客户端每 30 秒发送 `ping`，服务端回复 `pong`。
 - 超时：60 秒无心跳断开连接。
 - 权限：需要 `monitoring:read` 权限。
@@ -2533,23 +2533,23 @@ service_name = "nextswitch-api"
 
 | 前缀 | 所属服务 | 用途 |
 |------|---------|------|
-| `reg:sip:` | sipserver / signalserver | SIP 分机注册表 |
+| `reg:sip:` | sipserver / sigserver | SIP 分机注册表 |
 | `heartbeat:` | 所有服务 | 实例心跳 |
 | `auth:` | auth-service / nextswitch-api | 认证、权限缓存 |
 | `ratelimit:` | nextswitch-api | 速率限制计数器 |
 | `config:` | config-service | 配置缓存、Pub/Sub |
-| `cdr:` | sipserver / signalserver | CDR WAL 同步状态 |
-| `session:` | signalserver | WebSocket 会话状态 |
+| `cdr:` | sipserver / sigserver | CDR WAL 同步状态 |
+| `session:` | sigserver | WebSocket 会话状态 |
 | `cti:` | cti-server | 坐席状态、呼叫状态、队列数据 |
 | `im:` | im-server | IM 会话缓存、未读计数、在线状态 |
 | `router:` | router-server | 路由引擎流程实例 |
 | `security:` | auth-service | 安全相关（IP 封禁等） |
-| `park:` | sipserver / signalserver | 呼叫驻留槽位 |
-| `outbound:` | sipserver / signalserver | 外呼并发计数 |
-| `cac:` | sipserver / signalserver | 呼叫准入控制计数 |
-| `conf:` | sipserver / signalserver | 会议桥状态 |
+| `park:` | sipserver / sigserver | 呼叫驻留槽位 |
+| `outbound:` | sipserver / sigserver | 外呼并发计数 |
+| `cac:` | sipserver / sigserver | 呼叫准入控制计数 |
+| `conf:` | sipserver / sigserver | 会议桥状态 |
 
-### A.2 信令层（sipserver / signalserver）
+### A.2 信令层（sipserver / sigserver）
 
 ```
 # 注册表（Hash）
@@ -2735,16 +2735,16 @@ ratelimit:mfa:{user_id}:{window}       # 2FA 发送维度
 
 | 频道模式 | 发布者 | 订阅者 | 用途 |
 |---------|--------|--------|------|
-| `config:{tenant_id}:{entity_type}` | config-service | sipserver, signalserver, medserver, im-server, cti-server, nextswitch-api | 租户配置增量下发 |
+| `config:{tenant_id}:{entity_type}` | config-service | sipserver, sigserver, medserver, im-server, cti-server, nextswitch-api | 租户配置增量下发 |
 | `config:{tenant_id}:all` | config-service | 同上 | 租户级全量刷新 |
 | `config:broadcast` | config-service | 所有服务实例 | 全局配置变更 |
 | `cti:events:{tenant_id}` | cti-server | nextswitch-api（WebSocket 转发） | CTI 实时事件推送 |
 | `im:events:{tenant_id}` | im-server | cti-server（转发到 WebSocket） | IM 会话事件同步 |
-| `call:command:{instance_id}` | cti-server | sipserver / signalserver | 呼叫控制命令 |
-| `call:event:{instance_id}` | sipserver / signalserver | cti-server | 呼叫状态事件回报 |
-| `call:relay:{instance_id}` | signalserver | sipserver | 跨协议呼叫通知 |
+| `call:command:{instance_id}` | cti-server | sipserver / sigserver | 呼叫控制命令 |
+| `call:event:{instance_id}` | sipserver / sigserver | cti-server | 呼叫状态事件回报 |
+| `call:relay:{instance_id}` | sigserver | sipserver | 跨协议呼叫通知 |
 | `cluster:events` | 所有服务 | 所有服务 | 实例上下线通知 |
-| `security:ip_blocked` | auth-service | nextswitch-api, sipserver, signalserver | 动态 IP 封禁通知 |
+| `security:ip_blocked` | auth-service | nextswitch-api, sipserver, sigserver | 动态 IP 封禁通知 |
 
 ### A.11 Redis 数据库分配（如使用单实例 Redis）
 
@@ -2770,7 +2770,7 @@ ratelimit:mfa:{user_id}:{window}       # 2FA 发送维度
 | 服务 | HTTP | Metrics/Health | gRPC | SIP | WebSocket | RTP |
 |------|------|---------------|------|-----|-----------|-----|
 | sipserver | - | 9090 | 50051 | 5060-5061 | - | - |
-| signalserver | - | 9091 | 50051 | - | 8443 | - |
+| sigserver | - | 5080 | 50051 | - | 5443 | - |
 | medserver | - | 9092 | 50051 | - | - | 10000-60000 |
 | nextswitch-api | 8080 | 9093 | - | - | 8080 | - |
 | auth-service | 8081 | 9094 | 50051 | - | - | - |
@@ -2859,7 +2859,7 @@ ratelimit:mfa:{user_id}:{window}       # 2FA 发送维度
 | 服务 | 端口 | 端点路径 |
 |------|------|---------|
 | sipserver | 9090 | `/health`, `/health/live`, `/health/ready`, `/health/startup` |
-| signalserver | 9091 | `/health`, `/health/live`, `/health/ready`, `/health/startup` |
+| sigserver | 5080 | `/health`, `/health/live`, `/health/ready`, `/health/startup` |
 | medserver | 9092 | `/health`, `/health/live`, `/health/ready`, `/health/startup` |
 | nextswitch-api | 9093 | `/health`, `/health/live`, `/health/ready`, `/health/startup` |
 | auth-service | 9094 | `/health`, `/health/live`, `/health/ready`, `/health/startup` |

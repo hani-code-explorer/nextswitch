@@ -1,7 +1,7 @@
 {
   "name": "@nextswitch/cti-sdk",
   "version": "1.0.0",
-  "description": "NextSWITCH CTI SDK for call center integration",
+  "description": "NextSWITCH CTI SDK for enterprise IP PBX / call center management platform integration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

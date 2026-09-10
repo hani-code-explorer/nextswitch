@@ -1,6 +1,6 @@
 # @nextswitch/cti-sdk
 
-NextSWITCH CTI SDK for call center integration.
+NextSWITCH CTI SDK for enterprise IP PBX / call center management platform integration.
 
 ## Installation
 

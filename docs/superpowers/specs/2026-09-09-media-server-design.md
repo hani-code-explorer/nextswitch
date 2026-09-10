@@ -439,10 +439,10 @@ medserver 与其他服务的通信关系如下：
 
 | 方向 | 调用方 | 被调方 | 协议 | 接口 | 说明 |
 |------|--------|--------|------|------|------|
-| ← | sipserver / signalserver | medserver | gRPC | MediaService | 创建/修改/删除媒体会话 |
+| ← | sipserver / sigserver | medserver | gRPC | MediaService | 创建/修改/删除媒体会话 |
 | ← | cti-server | medserver | gRPC | MediaService | 会议混音、录音控制 |
 | ← | router-server | medserver | gRPC | MediaService | PlayPrompt、CollectDigits（图引擎节点） |
-| → | medserver | sipserver / signalserver | gRPC 事件流 | MediaEvents | 媒体事件推送（DTMF、播放完成等） |
+| → | medserver | sipserver / sigserver | gRPC 事件流 | MediaEvents | 媒体事件推送（DTMF、播放完成等） |
 | → | medserver | config-service | gRPC | ConfigService | 启动时加载媒体相关配置 |
 | → | medserver | Redis | Pub/Sub | config:{tid}:{entity} | 接收配置增量变更通知 |
 | ↔ | medserver | ASR/TTS Provider | WebSocket (WSS) | NLS / 其他 | 实时语音识别与语音合成（详见 §11） |

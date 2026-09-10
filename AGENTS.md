@@ -4,7 +4,7 @@ This file provides guidance to the AI agent when working with code in this repos
 
 ## Project Overview
 
-NextSWITCH is a VoIP SWITCH for Call Centers, built as a Rust workspace with multiple crates covering SIP signaling, RTP media handling, an API layer, and a web UI.
+NextSWITCH is an enterprise IP PBX / call center management platform, built as a Rust workspace with multiple crates covering SIP signaling, RTP media handling, an API layer, and a web UI.
 
 ## Build & Test Commands
 
