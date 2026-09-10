@@ -1,6 +1,6 @@
 # @nextswitch/cti-sdk
 
-Nextswitch CTI SDK for call center integration.
+NextSWITCH CTI SDK for call center integration.
 
 ## Installation
 

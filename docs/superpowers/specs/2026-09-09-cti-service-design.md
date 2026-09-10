@@ -2,7 +2,7 @@
 
 **Status**: Draft  
 **Date**: 2026-09-09  
-**Author**: Nextswitch Team
+**Author**: NextSWITCH Team
 
 ## Change History
 
@@ -15,7 +15,7 @@
 
 ### 1.1 Purpose
 
-CTI (Computer Telephony Integration) Service 是 Nextswitch 呼叫中心交换机的核心业务层，提供坐席控制、呼叫管理、自动呼叫分配（ACD）和实时事件推送功能。
+CTI (Computer Telephony Integration) Service 是 NextSWITCH 呼叫中心交换机的核心业务层，提供坐席控制、呼叫管理、自动呼叫分配（ACD）和实时事件推送功能。
 
 ### 1.2 Goals
 

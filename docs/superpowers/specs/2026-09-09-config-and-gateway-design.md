@@ -1,4 +1,4 @@
-# Nextswitch 配置中心与 API 网关设计规格书
+# NextSWITCH 配置中心与 API 网关设计规格书
 
 ## 文档信息
 
@@ -15,10 +15,10 @@
 
 ### 1.1 设计目标
 
-本文档定义 Nextswitch 平台两个核心基础设施服务的设计规格：
+本文档定义 NextSWITCH 平台两个核心基础设施服务的设计规格：
 
 - **Config Service（配置中心）**：负责所有配置数据的存储、版本控制、变更通知和审计。
-- **Nextswitch API（API 网关）**：统一 API 入口，负责请求路由、认证鉴权、速率限制、监控聚合和 WebSocket 代理。
+- **NextSWITCH API（API 网关）**：统一 API 入口，负责请求路由、认证鉴权、速率限制、监控聚合和 WebSocket 代理。
 
 两者的关系：
 

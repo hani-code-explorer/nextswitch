@@ -1,4 +1,4 @@
-# Nextswitch Media Server (medserver) 设计规格
+# NextSWITCH Media Server (medserver) 设计规格
 
 **版本**: 3.0.0  
 **日期**: 2026-09-10  
@@ -2369,7 +2369,7 @@ POST /api/v1/monitoring/alerts/{id}/acknowledge  # 确认告警
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Nextswitch Media Server Dashboard                          │
+│  NextSWITCH Media Server Dashboard                          │
 │  Site: us-east-1 | Instance: medserver-01 | Uptime: 7d 12h │
 ├─────────────────────────────────────────────────────────────┤
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │

@@ -10,7 +10,7 @@
 
 ### 1.1 定位
 
-Routing Engine（路由引擎）是 Nextswitch 的统一路由决策服务，独立于信令层和业务层部署。其职责是：**给定一个交互（Interaction），返回一个路由目标（Route Target）**。
+Routing Engine（路由引擎）是 NextSWITCH 的统一路由决策服务，独立于信令层和业务层部署。其职责是：**给定一个交互（Interaction），返回一个路由目标（Route Target）**。
 
 它不处理 SIP 信令，不管理坐席状态，不操控媒体流。它只做一件事——路由决策，并做到极致。
 
@@ -18,9 +18,9 @@ Routing Engine（路由引擎）是 Nextswitch 的统一路由决策服务，独
 
 参考 Genesys Universal Routing (UR) 架构：
 
-- **路由与信令分离**：Genesys 的 URS 不碰 SIP，SIP Server 通过 T-Library 的 `TRouteCall` 请求路由决策。Nextswitch 采用相同理念，路由引擎通过 gRPC 接收路由请求。
-- **统一交互抽象**：Genesys 将语音、邮件、聊天统一为 "Interaction"。Nextswitch 同样将 SIP 呼叫、IM 消息、回调请求统一为 `InteractionInfo`。
-- **策略驱动**：Genesys 用可视化流程图（IRD/Composer）定义路由策略。Nextswitch 用分层路由（规则 + 图引擎）实现同等灵活性。
+- **路由与信令分离**：Genesys 的 URS 不碰 SIP，SIP Server 通过 T-Library 的 `TRouteCall` 请求路由决策。NextSWITCH 采用相同理念，路由引擎通过 gRPC 接收路由请求。
+- **统一交互抽象**：Genesys 将语音、邮件、聊天统一为 "Interaction"。NextSWITCH 同样将 SIP 呼叫、IM 消息、回调请求统一为 `InteractionInfo`。
+- **策略驱动**：Genesys 用可视化流程图（IRD/Composer）定义路由策略。NextSWITCH 用分层路由（规则 + 图引擎）实现同等灵活性。
 
 ### 1.3 核心职责
 

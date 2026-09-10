@@ -2,13 +2,13 @@
 
 **Status**: Draft  
 **Date**: 2026-09-09  
-**Author**: Nextswitch Team
+**Author**: NextSWITCH Team
 
 ## 1. Overview
 
 ### 1.1 Purpose
 
-IM Service 是 Nextswitch 呼叫中心交换机的即时通讯模块，提供全渠道客服能力。客户可以通过 Web Chat、微信公众号、WhatsApp 等渠道发起聊天，坐席在工作台统一处理。
+IM Service 是 NextSWITCH 呼叫中心交换机的即时通讯模块，提供全渠道客服能力。客户可以通过 Web Chat、微信公众号、WhatsApp 等渠道发起聊天，坐席在工作台统一处理。
 
 ### 1.2 Goals
 

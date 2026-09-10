@@ -11,7 +11,7 @@ Removed sections: none
 Deferred items: none
 -->
 
-# Nextswitch Constitution
+# NextSWITCH Constitution
 
 ## Core Principles
 
@@ -244,7 +244,7 @@ All registration records, call state, and CDRs MUST include site and zone identi
 
 These identifiers MUST be propagated through:
 - Registration records (Redis hash fields)
-- SIP headers (custom `X-Nextswitch-Site` / `X-Nextswitch-AZ` headers for cross-site routing)
+- SIP headers (custom `X-NextSWITCH-Site` / `X-NextSWITCH-AZ` headers for cross-site routing)
 - CDR records (for billing and analytics)
 - gRPC/API responses (for service discovery and health monitoring)
 
@@ -259,7 +259,7 @@ These identifiers MUST be propagated through:
 
 | Component | Multi-site requirement |
 |-----------|----------------------|
-| sipserver | Site-local Redis registration; cross-site SIP Trunk; `X-Nextswitch-*` headers |
+| sipserver | Site-local Redis registration; cross-site SIP Trunk; `X-NextSWITCH-*` headers |
 | signalserver | WebSocket affinity per site; cross-site signaling via sipserver relay |
 | medserver | Site-local media processing; cross-site media relay when needed |
 | config | Per-site config store; global config replicated to all sites |

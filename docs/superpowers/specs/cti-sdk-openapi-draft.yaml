@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: Nextswitch CTI API
+  title: NextSWITCH CTI API
   description: |
-    Computer Telephony Integration (CTI) API for Nextswitch VoIP Switch.
+    Computer Telephony Integration (CTI) API for NextSWITCH VoIP Switch.
     
     ## 概述
     
@@ -55,7 +55,7 @@ info:
     | 2.0.0 | 2026-09-09 | Remove token from WebSocket URL (use JSON-RPC auth only); wrap ErrorResponse with `error` object; change `details` from object to array of {field, message}; add `request_id` to error response |
   version: 2.0.0
   contact:
-    name: Nextswitch Team
+    name: NextSWITCH Team
 
 servers:
   - url: http://localhost:8083/api/v1/cti

@@ -1,14 +1,14 @@
-# Nextswitch 压力测试工具设计规格
+# NextSWITCH 压力测试工具设计规格
 
 > **日期**: 2026-09-10
 > **状态**: 草案
-> **作者**: Nextswitch Team
+> **作者**: NextSWITCH Team
 
 ## 1. 概述
 
 ### 1.1 目标
 
-为 Nextswitch VoIP 软交换平台构建专用压力测试工具 `nextswitch-stress`，具备以下能力：
+为 NextSWITCH VoIP 软交换平台构建专用压力测试工具 `nextswitch-stress`，具备以下能力：
 
 - **单服务性能基线测试** — 定位单个服务（SignalServer、CTIServer、MediaServer）的性能瓶颈
 - **全链路场景编排** — 模拟真实呼叫中心业务流（座席登录 → 外呼 → 通话 → 挂断），验证端到端容量
@@ -341,7 +341,7 @@ struct MetricsAggregator {
 ### 7.4 Reporter 输出格式
 
 ```
-─── Nextswitch Stress Report ───────────────────────────────
+─── NextSWITCH Stress Report ───────────────────────────────
 Scenario: call-center-full-load    Duration: 120s
 ─────────────────────────────────────────────────────────────
 SIP Register:  10000 total | 9998 ok | 2 failed | P99: 45ms
@@ -372,7 +372,7 @@ Resources:    RSS 1.2GB | CPU 340% | FDs 8200
               └──────────────┼──────────────┘
                              │
                     ┌────────▼─────────┐
-                    │  Nextswitch 集群  │  (被测目标)
+                    │  NextSWITCH 集群  │  (被测目标)
                     └──────────────────┘
 ```
 

@@ -1,4 +1,4 @@
-# Nextswitch 平台安全设计规格书
+# NextSWITCH 平台安全设计规格书
 
 ## 文档信息
 
@@ -15,7 +15,7 @@
 
 ### 1.1 设计目标
 
-本文档是 Nextswitch 平台安全的统一设计规格书，覆盖用户认证授权、服务间认证、通信加密、敏感数据保护、入侵检测、审计日志、密钥管理、备份容灾、网络安全与应急响应等方面。
+本文档是 NextSWITCH 平台安全的统一设计规格书，覆盖用户认证授权、服务间认证、通信加密、敏感数据保护、入侵检测、审计日志、密钥管理、备份容灾、网络安全与应急响应等方面。
 
 **核心设计目标**：
 
@@ -128,7 +128,7 @@
 
 ## 2. 用户认证与授权
 
-Auth Service 是 Nextswitch 的认证授权中心，负责用户认证、权限管理、菜单管理和数据权限控制。
+Auth Service 是 NextSWITCH 的认证授权中心，负责用户认证、权限管理、菜单管理和数据权限控制。
 
 ### 2.1 数据模型
 
@@ -746,7 +746,7 @@ POST /api/v1/auth/mfa/setup
 {
   "secret": "JBSWY3DPEHPK3PXP",
   "qr_code_url": "data:image/png;base64,...",
-  "otpauth_url": "otpauth://totp/Nextswitch:admin?secret=JBSWY3DPEHPK3PXP&issuer=Nextswitch"
+  "otpauth_url": "otpauth://totp/NextSWITCH:admin?secret=JBSWY3DPEHPK3PXP&issuer=NextSWITCH"
 }
 
 用户扫码后：
@@ -1099,7 +1099,7 @@ monitoring:read
 
 #### 3.1.1 背景
 
-Nextswitch 内部服务间通信在无 Service Mesh 环境下运行。部署环境为单 VPC 内网 + 跨可用区（A+B），服务可能跨网络段通信。
+NextSWITCH 内部服务间通信在无 Service Mesh 环境下运行。部署环境为单 VPC 内网 + 跨可用区（A+B），服务可能跨网络段通信。
 
 **设计目标**：
 
